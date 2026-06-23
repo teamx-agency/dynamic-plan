@@ -1,6 +1,6 @@
 {
   "name": "dynamic-plan",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Generate interactive .mdx implementation plans with Figkit-style wireframes, Mermaid diagrams, and decision forms. Works as a slash command in Claude Code, Codex, OpenCode, Hermes, and Pi.",
   "keywords": [
     "skill",
