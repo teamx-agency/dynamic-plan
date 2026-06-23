@@ -10,7 +10,23 @@ A skill and slash command (`/dynamic-plan <goal>`) for **Claude Code**, **Codex*
 
 The agent generates a real HTML wireframe you can review, makes decisions through a form, copies the answers back, and starts implementing with your choices.
 
-![Login wireframe screenshot](docs/screenshots/login.png)
+![Login wireframe screenshot](docs/screenshots/login-flow.png)
+
+### v1.2.0 in action — toggle, mobile, drag, export
+
+The same plan rendered four ways: wireframe ↔ hi-fi, desktop ↔ mobile, with the new export-JSON button at the bottom of every decisions section.
+
+| Wireframe mode (default) | Hi-Fi mode (real colors) |
+|---|---|
+| ![wireframe](docs/screenshots/login-flow.png) | ![hi-fi](docs/screenshots/login-flow-hi-fi.png) |
+
+| Mobile preset (iPhone-shaped) | Decisions + Export JSON |
+|---|---|
+| ![mobile preset](docs/screenshots/login-mobile.png) | ![decisions export](docs/screenshots/decisions-export.png) |
+
+Drag-to-reorder: every step has a functional `⋮⋮` handle — drag one onto another to swap, the sidebar updates live, and the new order persists per plan.
+
+Plugin API: see [`docs/plugin-api.md`](docs/plugin-api.md) for the full contract.
 
 ## Why
 
