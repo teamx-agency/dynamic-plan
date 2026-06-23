@@ -110,8 +110,14 @@ window.__MDX_FRONTMATTER__ = frontmatter;
 ${code}
 
 import { createRoot } from "https://esm.sh/react-dom@18.3.1/client";
+// Use resolveComponents() to allow plugins (via window.DPLAN_PLUGINS).
+// Components live in a sibling file written alongside the HTML output.
+const componentsMod = await import("./${componentsBasename}");
+const components = componentsMod.resolveComponents
+  ? componentsMod.resolveComponents()
+  : componentsMod.default;
 const root = createRoot(document.getElementById("root"));
-root.render(_jsx(MDXContent, { components: {} }));
+root.render(_jsx(MDXContent, { components }));
 </script>
 </body>
 </html>
