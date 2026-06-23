@@ -9,11 +9,15 @@ stack: ["React", "Tailwind", "NextAuth"]
 
 import {
   PlanHeader, PlanSidebar, PlanStep,
-  Screen, ScreenFrame, Button, Field, Input, TextDivider, Col, Card, Avatar,
+  Screen, ScreenFrame, TopNav, SideNav, Layout, Breadcrumb, Tabs,
+  Button, Field, Input, Select, Textarea, Checkbox, Radio, Toggle,
+  Card, Modal, Toast, ToastStack, AlertBanner, Table, Avatar, Badge, Stat,
+  Row, Col, Grid, Divider, TextDivider, ViewModeToggle,
   DecisionForm, Decision, CopyDecisions, Callout
 } from "./components.js";
 
 <PlanHeader />
+<ViewModeToggle />
 
 <div className="plan-grid">
 
@@ -21,7 +25,8 @@ import {
   <PlanSidebar steps={[
     { id: "overview", title: "Overview" },
     { id: "step-1",   title: "1. Login screen" },
-    { id: "step-2",   title: "2. Error states" },
+    { id: "step-2",   title: "2. Mobile login" },
+    { id: "step-3",   title: "3. Error states" },
     { id: "decisions", title: "Decisions" },
   ]} />
 </aside>
@@ -32,11 +37,11 @@ import {
   <h2>Overview</h2>
   <p>Add OAuth2 (Google + GitHub) as the primary login method. Keep email/password as fallback.</p>
   <Callout emoji="🎨" tone="info">
-    This plan uses <strong>Figkit-style HTML wireframes</strong> — gray boxes, placeholder text, real layout. Open this file in the browser to explore.
+    Toggle <strong>🎨 Wireframe ↔ ✨ Hi-Fi</strong> in the top-right to see the same screens rendered with placeholder data vs. real colors. Drag the steps by their <code>⋮⋮</code> handles to reorder — the sidebar updates live.
   </Callout>
 </section>
 
-<PlanStep n={1} title="Login screen">
+<PlanStep n={1} title="Login screen (desktop)">
   <h4>Goal</h4>
   <p>One-click social login. Median time-to-dashboard under 5 seconds.</p>
 
@@ -64,21 +69,31 @@ import {
       </div>
     </Screen>
   </ScreenFrame>
+</PlanStep>
 
-  <h4>Loading state</h4>
-  <ScreenFrame title="During OAuth redirect">
-    <Screen title="Login" url="app.example/login">
-      <div style={{ maxWidth: 360, margin: "32px auto" }}>
+<PlanStep n={2} title="Login screen (mobile)">
+  <h4>Goal</h4>
+  <p>Same flow, but rendered in an iPhone viewport with notch + home indicator so we can review mobile spacing before building.</p>
+
+  <ScreenFrame title="Mobile login (iPhone 14 viewport)">
+    <Screen title="Login" url="app.example/login" device="mobile">
+      <div style={{ padding: "16px 0" }}>
+        <div style={{ textAlign: "center", marginBottom: 28 }}>
+          <div style={{ fontSize: 24, fontWeight: 700, color: "#111827", marginBottom: 4 }}>Welcome back</div>
+          <div style={{ fontSize: 13, color: "#6b7280" }}>Sign in to continue</div>
+        </div>
         <Col>
-          <Button variant="social" disabled>🔵  Redirecting to Google…</Button>
-          <Button variant="social" disabled>⚫  Continue with GitHub</Button>
+          <Button variant="social" fullWidth>🔵  Continue with Google</Button>
+          <Button variant="social" fullWidth>⚫  Continue with GitHub</Button>
         </Col>
+        <TextDivider>or</TextDivider>
+        <div style={{ fontSize: 12, color: "#6b7280", textAlign: "center" }}>Use email instead</div>
       </div>
     </Screen>
   </ScreenFrame>
 </PlanStep>
 
-<PlanStep n={2} title="Error states">
+<PlanStep n={3} title="Error states">
   <h4>Acceptance criteria</h4>
   <ul>
     <li><input type="checkbox" data-progress /> User-denied error offers retry</li>
@@ -102,6 +117,8 @@ import {
 
 <section id="decisions" className="plan-card">
   <h2>Decisions</h2>
+  <p>Pick an option for each question, add notes if needed, then <strong>💾 Export JSON</strong> to download the decisions, or <strong>📋 Copy decisions</strong> to paste back to the agent.</p>
+
   <DecisionForm id="login-d">
     <Decision
       id="provider-first"
