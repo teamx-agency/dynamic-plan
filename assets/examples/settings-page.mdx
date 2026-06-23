@@ -1,0 +1,170 @@
+---
+title: "Settings page"
+slug: "settings-page"
+generatedAt: "2026-06-23T00:00:00Z"
+goal: "User profile + connected accounts settings page"
+status: draft
+stack: ["React", "Tailwind", "Alpine.js"]
+---
+
+import {
+  PlanHeader, PlanSidebar, PlanStep,
+  Screen, ScreenFrame, TopNav, SideNav, Layout, Breadcrumb, Tabs,
+  Button, Field, Input, Select, Checkbox, Toggle, Card, Badge, Avatar,
+  Row, Col, Grid, Divider, AlertBanner, Modal,
+  DecisionForm, Decision, CopyDecisions, Callout
+} from "./components.js";
+
+<PlanHeader />
+
+<div className="plan-grid">
+
+<aside className="plan-sidebar">
+  <PlanSidebar steps={[
+    { id: "overview",  title: "Overview" },
+    { id: "step-1",    title: "1. Page layout" },
+    { id: "step-2",    title: "2. Connected accounts" },
+    { id: "decisions", title: "Decisions" },
+  ]} />
+</aside>
+
+<main className="plan-main">
+
+<section id="overview" className="plan-card">
+  <h2>Overview</h2>
+  <p>User settings with a side nav for sections, profile form, and OAuth account management.</p>
+</section>
+
+<PlanStep n={1} title="Page layout">
+  <h4>Goal</h4>
+  <p>Sticky side nav with sections, main content area, breadcrumb on top.</p>
+
+  <ScreenFrame title="Settings / Profile">
+    <Screen title="Settings" url="app.example/settings/profile">
+      <Layout
+        brand="MyApp"
+        sections={[
+          { label: "Account", items: ["Profile", "Connected accounts", "Sessions", "API keys"] },
+          { label: "Billing", items: ["Plan", "Invoices"] },
+          { label: "Team",   items: ["Members", "Roles", "Invites"] }
+        ]}
+      >
+        <Breadcrumb items={["Settings", "Account", "Profile"]} />
+        <h2 style={{ fontSize: 22, fontWeight: 600, color: "#374151", margin: "12px 0 16px" }}>Profile</h2>
+        <Card>
+          <Grid cols={2}>
+            <Field label="Display name" required>
+              <Input placeholder="Ada Lovelace" />
+            </Field>
+            <Field label="Email" required>
+              <Input type="email" placeholder="ada@company.com" />
+            </Field>
+            <Field label="Time zone">
+              <Select options={["UTC", "America/New_York", "Europe/Madrid", "Asia/Tokyo"]} />
+            </Field>
+            <Field label="Language">
+              <Select options={["English", "Spanish", "Japanese"]} />
+            </Field>
+          </Grid>
+          <Divider />
+          <h3 style={{ fontSize: 14, fontWeight: 600, color: "#374151", marginBottom: 12 }}>Notifications</h3>
+          <Col>
+            <Row>
+              <Toggle />
+              <span style={{ fontSize: 13, color: "#4b5563" }}>Email me about new features</span>
+            </Row>
+            <Row>
+              <Toggle on />
+              <span style={{ fontSize: 13, color: "#4b5563" }}>Send weekly digest</span>
+            </Row>
+            <Row>
+              <Toggle />
+              <span style={{ fontSize: 13, color: "#4b5563" }}>Marketing emails</span>
+            </Row>
+          </Col>
+          <Divider />
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+            <Button variant="ghost">Cancel</Button>
+            <Button variant="primary">Save changes</Button>
+          </div>
+        </Card>
+      </Layout>
+    </Screen>
+  </ScreenFrame>
+</PlanStep>
+
+<PlanStep n={2} title="Connected accounts">
+  <h4>Goal</h4>
+  <p>List connected OAuth providers with status, link date, and unlink action.</p>
+
+  <ScreenFrame title="Settings / Connected accounts">
+    <Screen title="Settings" url="app.example/settings/accounts">
+      <Layout
+        brand="MyApp"
+        sections={[
+          { label: "Account", items: ["Profile", "Connected accounts", "Sessions", "API keys"] }
+        ]}
+      >
+        <Breadcrumb items={["Settings", "Account", "Connected accounts"]} />
+        <h2 style={{ fontSize: 22, fontWeight: 600, color: "#374151", margin: "12px 0 4px" }}>Connected accounts</h2>
+        <p style={{ fontSize: 13, color: "#9ca3af", marginBottom: 20 }}>Sign in faster next time. We'll never post to these accounts without your permission.</p>
+
+        <Card>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <div style={{ width: 36, height: 36, borderRadius: 6, background: "#fef3c7", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>🔵</div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 14, fontWeight: 600, color: "#374151" }}>Google</div>
+              <div style={{ fontSize: 12, color: "#9ca3af" }}>_____@gmail.com · linked 23 Jun 2026</div>
+            </div>
+            <Badge variant="success">Connected</Badge>
+            <Button variant="destructive" size="sm">Unlink</Button>
+          </div>
+        </Card>
+
+        <Card>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <div style={{ width: 36, height: 36, borderRadius: 6, background: "#f3f4f6", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>⚫</div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 14, fontWeight: 600, color: "#374151" }}>GitHub</div>
+              <div style={{ fontSize: 12, color: "#9ca3af" }}>Not connected</div>
+            </div>
+            <Button variant="secondary" size="sm">+ Connect</Button>
+          </div>
+        </Card>
+      </Layout>
+    </Screen>
+  </ScreenFrame>
+
+  <h4>Confirmation modal</h4>
+  <ScreenFrame title="Unlink confirmation">
+    <Screen title="Settings" url="app.example/settings/accounts">
+      <Layout brand="MyApp" sections={[{ label: "Account", items: ["Profile", "Connected accounts"] }]}>
+        <div style={{ height: 280, position: "relative" }}>
+          <Modal title="Unlink Google account?" confirmLabel="Unlink" destructive>
+            <p>You'll no longer be able to sign in with Google. Make sure you have another way to sign in (password, GitHub, or magic link).</p>
+            <Checkbox checked>Email me a backup sign-in link</Checkbox>
+          </Modal>
+        </div>
+      </Layout>
+    </Screen>
+  </ScreenFrame>
+</PlanStep>
+
+<section id="decisions" className="plan-card">
+  <h2>Decisions</h2>
+  <DecisionForm id="settings-d">
+    <Decision
+      id="layout-style"
+      question="Settings layout?"
+      default="sidenav"
+      options={[
+        { value: "sidenav",  label: "Side nav (sticky)", help: "Scales to many sections" },
+        { value: "tabs",     label: "Top tabs",          help: "Simpler, fewer sections" },
+      ]}
+    />
+  </DecisionForm>
+  <CopyDecisions target="#settings-d" />
+</section>
+
+</main>
+</div>

@@ -1,0 +1,401 @@
+---
+title: "OAuth2 login for TeamX dashboard"
+slug: "oauth2-teamx"
+generatedAt: "2026-06-23T14:32:00Z"
+goal: "Add Google and GitHub OAuth2 login to the TeamX dashboard so users no longer have to remember a password"
+status: draft
+stack: ["PHP 8.2", "Medusa Framework", "Doctrine ORM", "Alpine.js", "Tailwind CSS"]
+---
+
+import {
+  PlanHeader, PlanSidebar, PlanStep, Mermaid, Wireframe, Callout,
+  DecisionForm, Decision, CopyDecisions, ProgressBar,
+  // Figkit-style wireframe components
+  Screen, ScreenFrame, TopNav, SideNav, Layout, Breadcrumb, Tabs,
+  Button, Field, Input, Select, Textarea, Checkbox, Radio, Toggle,
+  Card, Modal, Toast, ToastStack, AlertBanner, Table, Avatar, Badge, Stat,
+  Divider, TextDivider, Row, Col, Grid
+} from "./components.js";
+
+<PlanHeader />
+
+<div className="plan-grid">
+
+<aside className="plan-sidebar">
+  <ProgressBar />
+  <PlanSidebar steps={[
+    { id: "overview", title: "Overview" },
+    { id: "step-1",   title: "1. Login screen" },
+    { id: "step-2",   title: "2. OAuth callback" },
+    { id: "step-3",   title: "3. Account linking" },
+    { id: "step-4",   title: "4. Settings page" },
+    { id: "decisions", title: "Decisions" },
+  ]} />
+</aside>
+
+<main className="plan-main">
+
+<section id="overview" className="plan-card">
+  <h2>Overview</h2>
+  <p>Replace email+password login with OAuth2 (Google + GitHub). Keep email/password as fallback for 30 days. New users sign up with one click.</p>
+
+  <h3>Goals</h3>
+  <ul>
+    <li>Reduce login friction (median time-to-dashboard under 5 seconds).</li>
+    <li>Centralize identity provider config so rotating secrets needs no deploy.</li>
+    <li>Allow linking multiple OAuth providers to a single account.</li>
+  </ul>
+
+  <h3>Non-Goals</h3>
+  <ul>
+    <li>SSO with SAML / OIDC enterprise providers.</li>
+    <li>Passwordless email magic links.</li>
+    <li>Re-architecting the existing auth middleware.</li>
+  </ul>
+
+  <Callout emoji="🎨" tone="info">
+    Each step below shows a **Figkit-style wireframe** — gray boxes, dashed borders, placeholder text. The goal is to align on layout and information density before writing real code.
+  </Callout>
+</section>
+
+<PlanStep n={1} title="Login screen (entry point)">
+  <h4>Goal</h4>
+  <p>Replace the current email+password form with a one-click social login. Keep email/password as a secondary option below the divider.</p>
+
+  <h4>Why</h4>
+  <p>Median time-to-dashboard drops from 12s (typing email + password) to 3s (one click + IdP redirect).</p>
+
+  <h4>Acceptance criteria</h4>
+  <ul>
+    <li><input type="checkbox" data-progress /> Google button first, GitHub second (alphabetical by audience size)</li>
+    <li><input type="checkbox" data-progress /> Email/password collapsed under "Other ways to sign in" expander</li>
+    <li><input type="checkbox" data-progress /> Loading state disables both buttons during redirect</li>
+    <li><input type="checkbox" data-progress /> LCP &lt; 1.2s on 3G Fast (TBT measurable with RUM)</li>
+  </ul>
+
+  <ScreenFrame title="Login screen" desc="Centered card, 360px wide. Above the fold, no scroll needed on mobile.">
+    <Screen title="Login" url="teamx.app/login">
+      <div style={{ maxWidth: 360, margin: "32px auto" }}>
+        <div style={{ textAlign: "center", marginBottom: 24 }}>
+          <div style={{ fontSize: 22, fontWeight: 700, color: "#374151", marginBottom: 4 }}>Welcome back</div>
+          <div style={{ fontSize: 13, color: "#9ca3af" }}>Sign in to your TeamX dashboard</div>
+        </div>
+        <Col>
+          <Button variant="social">🔵  Continue with Google</Button>
+          <Button variant="social">⚫  Continue with GitHub</Button>
+        </Col>
+        <TextDivider>or</TextDivider>
+        <div style={{ fontSize: 12, color: "#9ca3af", textAlign: "center", marginBottom: 12, cursor: "pointer" }}>
+          ▸ Use email and password
+        </div>
+        <div style={{ display: "flex", justifyContent: "center", gap: 16, fontSize: 11, color: "#d1d5db" }}>
+          <span>Terms</span>
+          <span>·</span>
+          <span>Privacy</span>
+        </div>
+      </div>
+    </Screen>
+  </ScreenFrame>
+
+  <h4>Expanded state (email/password)</h4>
+  <ScreenFrame title="Login screen — email/password expanded">
+    <Screen title="Login" url="teamx.app/login">
+      <div style={{ maxWidth: 360, margin: "32px auto" }}>
+        <div style={{ textAlign: "center", marginBottom: 24 }}>
+          <div style={{ fontSize: 22, fontWeight: 700, color: "#374151", marginBottom: 4 }}>Welcome back</div>
+        </div>
+        <Col>
+          <Button variant="social">🔵  Continue with Google</Button>
+          <Button variant="social">⚫  Continue with GitHub</Button>
+        </Col>
+        <TextDivider>or</TextDivider>
+        <Field label="Email">
+          <Input type="email" placeholder="you@company.com" />
+        </Field>
+        <Field label="Password" required>
+          <Input type="password" placeholder="••••••••" />
+        </Field>
+        <div style={{ textAlign: "right", marginBottom: 12 }}>
+          <a style={{ fontSize: 11, color: "#4f46e5" }}>Forgot password?</a>
+        </div>
+        <Button variant="primary" fullWidth>Sign in</Button>
+        <div style={{ fontSize: 12, textAlign: "center", color: "#9ca3af", marginTop: 12 }}>
+          ▾ Hide email form
+        </div>
+      </div>
+    </Screen>
+  </ScreenFrame>
+
+  <h4>Loading state</h4>
+  <ScreenFrame title="Login screen — loading during OAuth redirect">
+    <Screen title="Login" url="teamx.app/login">
+      <div style={{ maxWidth: 360, margin: "32px auto" }}>
+        <Col>
+          <Button variant="social" disabled>🔵  Redirecting to Google…</Button>
+          <Button variant="social" disabled>⚫  Continue with GitHub</Button>
+        </Col>
+        <TextDivider>or</TextDivider>
+        <Field label="Email">
+          <Input type="email" placeholder="you@company.com" disabled />
+        </Field>
+        <Button variant="primary" fullWidth disabled>Sign in</Button>
+      </div>
+    </Screen>
+  </ScreenFrame>
+
+  <h4>Risks</h4>
+  <ul>
+    <li>Google button hidden by ITP/cookie blockers → fall back to popup OAuth flow</li>
+    <li>IdP slow (≥3s) → skeleton placeholder, not spinner</li>
+  </ul>
+</PlanStep>
+
+<PlanStep n={2} title="OAuth callback & error states">
+  <h4>Goal</h4>
+  <p>Map every error path from the IdP to a clear, recoverable screen. No raw 500s.</p>
+
+  <h4>Acceptance criteria</h4>
+  <ul>
+    <li><input type="checkbox" data-progress /> Each error has a dedicated screen (denied, expired, account_exists, server_error, network)</li>
+    <li><input type="checkbox" data-progress /> "Try again" button returns to /login with state preserved</li>
+    <li><input type="checkbox" data-progress /> "Use a different account" offered when applicable</li>
+  </ul>
+
+  <ScreenFrame title="User denied consent at IdP">
+    <Screen title="OAuth failed" url="teamx.app/auth/error">
+      <div style={{ maxWidth: 420, margin: "32px auto", textAlign: "center" }}>
+        <div style={{ fontSize: 32, marginBottom: 12 }}>😕</div>
+        <div style={{ fontSize: 18, fontWeight: 600, color: "#374151", marginBottom: 8 }}>Sign-in cancelled</div>
+        <div style={{ fontSize: 13, color: "#9ca3af", marginBottom: 24 }}>
+          You cancelled the Google sign-in window. No account was created.
+        </div>
+        <Col>
+          <Button variant="primary" fullWidth>Try Google again</Button>
+          <Button variant="ghost" fullWidth>Use a different account</Button>
+        </Col>
+      </div>
+    </Screen>
+  </ScreenFrame>
+
+  <ScreenFrame title="Email already registered with another provider">
+    <Screen title="OAuth failed" url="teamx.app/auth/error">
+      <div style={{ maxWidth: 460, margin: "32px auto" }}>
+        <div style={{ textAlign: "center", marginBottom: 16 }}>
+          <Badge variant="warn">Account exists</Badge>
+        </div>
+        <div style={{ fontSize: 17, fontWeight: 600, color: "#374151", marginBottom: 6, textAlign: "center" }}>
+          _____@gmail.com is already registered
+        </div>
+        <div style={{ fontSize: 13, color: "#9ca3af", marginBottom: 20, textAlign: "center" }}>
+          An account with this email exists. Sign in with the original method, then link Google from settings.
+        </div>
+        <Card title="Existing account">
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
+            <Avatar>JD</Avatar>
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 500, color: "#374151" }}>Jane Doe</div>
+              <div style={{ fontSize: 11, color: "#9ca3af" }}>_____@gmail.com · joined Mar 2024</div>
+            </div>
+          </div>
+          <Row>
+            <Button variant="primary" fullWidth>Sign in with password</Button>
+            <Button variant="secondary" fullWidth>I forgot</Button>
+          </Row>
+        </Card>
+      </div>
+    </Screen>
+  </ScreenFrame>
+
+  <ScreenFrame title="Server error (500 from our side)">
+    <Screen title="OAuth failed" url="teamx.app/auth/error">
+      <div style={{ maxWidth: 420, margin: "32px auto" }}>
+        <AlertBanner tone="danger">
+          <strong>Something went wrong on our end.</strong> Your account was not modified. Error ID: <code>auth_5f3a2b</code>
+        </AlertBanner>
+        <div style={{ textAlign: "center", marginTop: 20 }}>
+          <Button variant="primary">Retry sign in</Button>
+        </div>
+        <div style={{ fontSize: 11, color: "#9ca3af", textAlign: "center", marginTop: 16 }}>
+          If this keeps happening, contact <a style={{ color: "#4f46e5" }}>support@teamx.app</a> with the error ID.
+        </div>
+      </div>
+    </Screen>
+  </ScreenFrame>
+</PlanStep>
+
+<PlanStep n={3} title="Account linking (settings)">
+  <h4>Goal</h4>
+  <p>Let an authenticated user link or unlink Google/GitHub from their profile, with explicit re-auth confirmation.</p>
+
+  <h4>Acceptance criteria</h4>
+  <ul>
+    <li><input type="checkbox" data-progress /> "Connected accounts" section in profile settings</li>
+    <li><input type="checkbox" data-progress /> Linking requires re-auth (password OR current OAuth)</li>
+    <li><input type="checkbox" data-progress /> Audit log entry for every link/unlink</li>
+    <li><input type="checkbox" data-progress /> At least 1 OAuth provider required to unlink email/password (no lockout)</li>
+  </ul>
+
+  <ScreenFrame title="Settings → Connected accounts">
+    <Screen title="Settings" url="teamx.app/settings/accounts">
+      <Layout
+        brand="TeamX"
+        sections={[
+          { label: "Account", items: ["Profile", "Connected accounts", "Sessions"] },
+          { label: "Billing", items: ["Plan", "Invoices"] },
+          { label: "Team", items: ["Members", "Roles"] }
+        ]}
+      >
+        <Breadcrumb items={["Settings", "Account", "Connected accounts"]} />
+        <h2 style={{ fontSize: 22, fontWeight: 600, color: "#374151", margin: "12px 0 4px" }}>Connected accounts</h2>
+        <p style={{ fontSize: 13, color: "#9ca3af", marginBottom: 20 }}>
+          Sign in faster next time. We'll never post to these accounts without your permission.
+        </p>
+
+        <Card>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <div style={{ width: 36, height: 36, borderRadius: 6, background: "#fef3c7", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>🔵</div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 14, fontWeight: 600, color: "#374151" }}>Google</div>
+              <div style={{ fontSize: 12, color: "#9ca3af" }}>_____@gmail.com · linked 23 Jun 2026</div>
+            </div>
+            <Badge variant="success">Connected</Badge>
+            <Button variant="destructive" size="sm">Unlink</Button>
+          </div>
+        </Card>
+
+        <Card>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <div style={{ width: 36, height: 36, borderRadius: 6, background: "#f3f4f6", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>⚫</div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 14, fontWeight: 600, color: "#374151" }}>GitHub</div>
+              <div style={{ fontSize: 12, color: "#9ca3af" }}>Not connected</div>
+            </div>
+            <Button variant="secondary" size="sm">+ Connect</Button>
+          </div>
+        </Card>
+      </Layout>
+    </Screen>
+  </ScreenFrame>
+
+  <ScreenFrame title="Confirmation modal when unlinking last OAuth">
+    <Screen title="Settings" url="teamx.app/settings/accounts">
+      <Layout brand="TeamX" sections={[{ label: "Account", items: ["Profile", "Connected accounts", "Sessions"] }]}>
+        <div style={{ height: 300, position: "relative" }}>
+          <Modal
+            title="Unlink Google account?"
+            confirmLabel="Unlink"
+            destructive
+          >
+            <p>You'll no longer be able to sign in with Google. Make sure you have another way to sign in (password, GitHub, or magic link).</p>
+            <Checkbox checked>Email me a backup sign-in link</Checkbox>
+          </Modal>
+        </div>
+      </Layout>
+    </Screen>
+  </ScreenFrame>
+</PlanStep>
+
+<PlanStep n={4} title="Admin dashboard (post-MVP)">
+  <h4>Goal</h4>
+  <p>Surface OAuth usage so the team can track migration progress and detect anomalies.</p>
+
+  <h4>Acceptance criteria</h4>
+  <ul>
+    <li><input type="checkbox" data-progress /> Daily active users by sign-in method (chart placeholder)</li>
+    <li><input type="checkbox" data-progress /> Failed OAuth attempts grouped by provider + error code</li>
+    <li><input type="checkbox" data-progress /> Audit log viewer (read-only)</li>
+  </ul>
+
+  <ScreenFrame title="Admin → Auth metrics">
+    <Screen title="Admin · Auth" url="teamx.app/admin/auth">
+      <Layout
+        brand="TeamX Admin"
+        sections={[
+          { label: "Overview", items: ["Dashboard", "Metrics"] },
+          { label: "Users", items: ["All users", "Audit log"] },
+          { label: "System", items: ["Auth providers", "Webhooks"] }
+        ]}
+      >
+        <h2 style={{ fontSize: 22, fontWeight: 600, color: "#374151", margin: "0 0 4px" }}>Auth metrics</h2>
+        <p style={{ fontSize: 13, color: "#9ca3af", marginBottom: 20 }}>Last 30 days · updated 5 min ago</p>
+
+        <Grid cols={4}>
+          <Stat value="12,847" label="Sign-ins" delta="+18%" />
+          <Stat value="2,341" label="New via OAuth" delta="+42%" />
+          <Stat value="0.4%" label="Failure rate" delta="-0.1%" />
+          <Stat value="3.2s" label="P50 latency" delta="-0.4s" />
+        </Grid>
+
+        <Divider />
+
+        <h3 style={{ fontSize: 16, fontWeight: 600, color: "#374151", marginBottom: 12 }}>Sign-ins by method</h3>
+        <Card>
+          <div style={{ display: "flex", alignItems: "flex-end", gap: 8, height: 160, padding: "12px 0" }}>
+            {[60, 75, 82, 90, 95, 88, 92, 98, 100, 95, 88, 92].map(function (h, i) {
+              return (
+                React.createElement("div", { key: i, style: { flex: 1, height: h + "%", background: "#eef2ff", borderRadius: 2 } })
+              );
+            })}
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: "#9ca3af", marginTop: 4 }}>
+            <span>Jun 1</span><span>Jun 8</span><span>Jun 15</span><span>Jun 22</span>
+          </div>
+        </Card>
+
+        <h3 style={{ fontSize: 16, fontWeight: 600, color: "#374151", margin: "20px 0 12px" }}>Recent failures</h3>
+        <Table columns={["Time", "Provider", "Error", "User", "IP"]} rows={5} />
+      </Layout>
+    </Screen>
+  </ScreenFrame>
+</PlanStep>
+
+<section id="decisions" className="plan-card">
+  <h2>Decisions needed before implementation</h2>
+  <p>Pick an option for each question, add notes if needed, then copy the block at the bottom and paste it back to the agent.</p>
+
+  <DecisionForm id="plan-decisions">
+    <Decision
+      id="provider-priority"
+      question="Which provider should we ship first?"
+      default="google"
+      options={[
+        { value: "google",  label: "Google",  help: "Widest reach, fastest setup, mobile-friendly" },
+        { value: "github",  label: "GitHub",  help: "Devs love it, limited audience" },
+        { value: "both",    label: "Both at once", help: "Max coverage, ~2× implementation work" },
+      ]}
+    />
+    <Decision
+      id="fallback-strategy"
+      question="What should we do with email/password login?"
+      default="keep-30d"
+      options={[
+        { value: "keep-30d",  label: "Keep for 30 days",   help: "Safest, lets users migrate" },
+        { value: "keep-forever", label: "Keep forever",   help: "Zero user disruption, more code to maintain" },
+        { value: "remove-now", label: "Remove immediately", help: "Cleanest, but risk of lockouts" },
+      ]}
+    />
+    <Decision
+      id="account-linking"
+      question="Should we allow linking multiple OAuth providers to one account?"
+      default="yes"
+      options={[
+        { value: "yes", label: "Yes",  help: "Better UX for power users" },
+        { value: "no",  label: "No",   help: "Simpler schema, one provider per user" },
+      ]}
+    />
+  </DecisionForm>
+
+  <CopyDecisions target="#plan-decisions" />
+
+  <hr />
+
+  <h3>How to use this file</h3>
+  <ul>
+    <li>Decisions stay in your browser — nothing is sent anywhere.</li>
+    <li>Click <strong>Copy decisions</strong> to get a paste-ready block.</li>
+    <li>Paste it back into the chat and the agent will implement the plan with your choices.</li>
+  </ul>
+</section>
+
+</main>
+</div>

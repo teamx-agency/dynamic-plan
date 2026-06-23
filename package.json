@@ -1,0 +1,65 @@
+{
+  "name": "dynamic-plan",
+  "version": "1.0.0",
+  "description": "Generate interactive .mdx implementation plans with Figkit-style wireframes, Mermaid diagrams, and decision forms. Works as a slash command in Claude Code, Codex, OpenCode, Hermes, and Pi.",
+  "keywords": [
+    "skill",
+    "slash-command",
+    "claude-code",
+    "codex",
+    "opencode",
+    "hermes",
+    "pi",
+    "mdx",
+    "wireframe",
+    "planning",
+    "ai-agent"
+  ],
+  "license": "MIT",
+  "author": {
+    "name": "rod",
+    "url": "https://github.com/teamx-agency"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/teamx-agency/dynamic-plan.git"
+  },
+  "bugs": {
+    "url": "https://github.com/teamx-agency/dynamic-plan/issues"
+  },
+  "homepage": "https://github.com/teamx-agency/dynamic-plan#readme",
+  "main": "scripts/compile-mdx.mjs",
+  "type": "module",
+  "bin": {
+    "dynamic-plan": "bin/dynamic-plan.js"
+  },
+  "files": [
+    "bin/",
+    "scripts/",
+    "assets/",
+    "references/",
+    "SKILL.md",
+    "LICENSE",
+    "README.md",
+    "install.sh",
+    "uninstall.sh"
+  ],
+  "scripts": {
+    "compile": "node scripts/compile-mdx.mjs",
+    "serve": "bash scripts/serve-mdx.sh",
+    "install-skill": "bash install.sh",
+    "uninstall-skill": "bash uninstall.sh",
+    "test": "node scripts/test-compile.mjs"
+  },
+  "dependencies": {
+    "@mdx-js/mdx": "^3.0.1"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "os": [
+    "darwin",
+    "linux",
+    "win32"
+  ]
+}

@@ -1,0 +1,121 @@
+---
+title: "Login flow"
+slug: "login-flow"
+generatedAt: "2026-06-23T00:00:00Z"
+goal: "Add one-click social login (Google + GitHub) to the app"
+status: draft
+stack: ["React", "Tailwind", "NextAuth"]
+---
+
+import {
+  PlanHeader, PlanSidebar, PlanStep,
+  Screen, ScreenFrame, Button, Field, Input, TextDivider, Col, Card, Avatar,
+  DecisionForm, Decision, CopyDecisions, Callout
+} from "./components.js";
+
+<PlanHeader />
+
+<div className="plan-grid">
+
+<aside className="plan-sidebar">
+  <PlanSidebar steps={[
+    { id: "overview", title: "Overview" },
+    { id: "step-1",   title: "1. Login screen" },
+    { id: "step-2",   title: "2. Error states" },
+    { id: "decisions", title: "Decisions" },
+  ]} />
+</aside>
+
+<main className="plan-main">
+
+<section id="overview" className="plan-card">
+  <h2>Overview</h2>
+  <p>Add OAuth2 (Google + GitHub) as the primary login method. Keep email/password as fallback.</p>
+  <Callout emoji="🎨" tone="info">
+    This plan uses <strong>Figkit-style HTML wireframes</strong> — gray boxes, placeholder text, real layout. Open this file in the browser to explore.
+  </Callout>
+</section>
+
+<PlanStep n={1} title="Login screen">
+  <h4>Goal</h4>
+  <p>One-click social login. Median time-to-dashboard under 5 seconds.</p>
+
+  <h4>Acceptance criteria</h4>
+  <ul>
+    <li><input type="checkbox" data-progress /> Google button first (alphabetical by audience size)</li>
+    <li><input type="checkbox" data-progress /> GitHub button second</li>
+    <li><input type="checkbox" data-progress /> Email/password collapsed by default</li>
+    <li><input type="checkbox" data-progress /> Loading state disables both buttons during redirect</li>
+  </ul>
+
+  <ScreenFrame title="Login screen" desc="Centered card, 360px wide, above the fold on mobile.">
+    <Screen title="Login" url="app.example/login">
+      <div style={{ maxWidth: 360, margin: "32px auto" }}>
+        <div style={{ textAlign: "center", marginBottom: 24 }}>
+          <div style={{ fontSize: 22, fontWeight: 700, color: "#374151", marginBottom: 4 }}>Welcome back</div>
+          <div style={{ fontSize: 13, color: "#9ca3af" }}>Sign in to continue</div>
+        </div>
+        <Col>
+          <Button variant="social">🔵  Continue with Google</Button>
+          <Button variant="social">⚫  Continue with GitHub</Button>
+        </Col>
+        <TextDivider>or</TextDivider>
+        <div style={{ fontSize: 12, color: "#9ca3af", textAlign: "center" }}>▸ Use email and password</div>
+      </div>
+    </Screen>
+  </ScreenFrame>
+
+  <h4>Loading state</h4>
+  <ScreenFrame title="During OAuth redirect">
+    <Screen title="Login" url="app.example/login">
+      <div style={{ maxWidth: 360, margin: "32px auto" }}>
+        <Col>
+          <Button variant="social" disabled>🔵  Redirecting to Google…</Button>
+          <Button variant="social" disabled>⚫  Continue with GitHub</Button>
+        </Col>
+      </div>
+    </Screen>
+  </ScreenFrame>
+</PlanStep>
+
+<PlanStep n={2} title="Error states">
+  <h4>Acceptance criteria</h4>
+  <ul>
+    <li><input type="checkbox" data-progress /> User-denied error offers retry</li>
+    <li><input type="checkbox" data-progress /> Account-exists error offers sign-in to existing account</li>
+  </ul>
+
+  <ScreenFrame title="User denied consent at IdP">
+    <Screen title="Sign-in failed" url="app.example/auth/error">
+      <div style={{ maxWidth: 420, margin: "32px auto", textAlign: "center" }}>
+        <div style={{ fontSize: 32, marginBottom: 12 }}>😕</div>
+        <div style={{ fontSize: 18, fontWeight: 600, color: "#374151", marginBottom: 8 }}>Sign-in cancelled</div>
+        <div style={{ fontSize: 13, color: "#9ca3af", marginBottom: 24 }}>You cancelled the Google sign-in window. No account was created.</div>
+        <Col>
+          <Button variant="primary" fullWidth>Try Google again</Button>
+          <Button variant="ghost" fullWidth>Use a different account</Button>
+        </Col>
+      </div>
+    </Screen>
+  </ScreenFrame>
+</PlanStep>
+
+<section id="decisions" className="plan-card">
+  <h2>Decisions</h2>
+  <DecisionForm id="login-d">
+    <Decision
+      id="provider-first"
+      question="Which provider should we ship first?"
+      default="google"
+      options={[
+        { value: "google", label: "Google", help: "Widest reach" },
+        { value: "github", label: "GitHub", help: "Devs love it" },
+        { value: "both",   label: "Both at once", help: "Max coverage" },
+      ]}
+    />
+  </DecisionForm>
+  <CopyDecisions target="#login-d" />
+</section>
+
+</main>
+</div>

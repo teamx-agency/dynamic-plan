@@ -1,0 +1,82 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    name: Lint + test
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [18, 20, 22]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: npm
+          cache-dependency-path: scripts/package-lock.json
+
+      - name: Install dependencies
+        working-directory: scripts
+        run: npm ci
+
+      - name: Run smoke tests
+        run: node scripts/test-compile.mjs
+
+      - name: Compile every example
+        run: |
+          mkdir -p /tmp/dynamic-plan-ci
+          for ex in assets/examples/*.mdx; do
+            base=$(basename "$ex" .mdx)
+            echo "Compiling $base..."
+            node scripts/compile-mdx.mjs "$ex" "/tmp/dynamic-plan-ci/${base}.html"
+          done
+
+      - name: Verify output sizes (sanity)
+        run: |
+          for f in /tmp/dynamic-plan-ci/*.html; do
+            size=$(wc -c < "$f")
+            if [ "$size" -lt 5000 ]; then
+              echo "✗ $f is suspiciously small: ${size} bytes"
+              exit 1
+            fi
+            echo "✓ $f: ${size} bytes"
+          done
+
+  syntax:
+    name: Syntax check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: node --check all .js and .mjs files
+        run: |
+          set -e
+          for f in $(find . -type f \( -name '*.js' -o -name '*.mjs' \) -not -path './node_modules/*' -not -path './scripts/node_modules/*' -not -path './.git/*'); do
+            node --check "$f"
+            echo "  ✓ $f"
+          done
+
+  install-test:
+    name: Installer dry-run (macOS via ubuntu bash)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Verify install.sh is well-formed
+        run: |
+          bash -n install.sh && echo "✓ install.sh: bash syntax OK"
+          bash -n uninstall.sh && echo "✓ uninstall.sh: bash syntax OK"
+          bash -n scripts/serve-mdx.sh && echo "✓ serve-mdx.sh: bash syntax OK"
+          bash -n release.sh && echo "✓ release.sh: bash syntax OK"

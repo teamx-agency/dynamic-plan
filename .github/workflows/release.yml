@@ -1,0 +1,117 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to release (e.g. 1.2.3). Leave blank to use package.json."
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+  id-token: write   # for npm provenance
+
+jobs:
+  test:
+    name: Tests
+    uses: ./.github/workflows/ci.yml
+    with:
+      # Re-use the CI workflow's job via a re-usable pattern.
+      # (Alternative: re-run the same steps inline. Kept simple here.)
+      # NOTE: This requires CI to be a "workflow_call"-able workflow, which
+      # it is NOT in this file. We run tests inline in release instead.
+      # This job block is therefore intentionally not used. See `release` job.
+      ref: ${{ github.ref }}
+
+  release:
+    name: Publish to npm + GitHub Release
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # full history for changelog generation
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: https://registry.npmjs.org/
+          cache: npm
+          cache-dependency-path: scripts/package-lock.json
+
+      - name: Install dependencies
+        working-directory: scripts
+        run: npm ci
+
+      - name: Read version from tag (or package.json)
+        id: version
+        run: |
+          if [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
+            VERSION="${GITHUB_REF_NAME#v}"
+          else
+            VERSION=$(node -e "console.log(require('./package.json').version)")
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "→ releasing $VERSION"
+
+      - name: Verify version matches package.json
+        run: |
+          PKG=$(node -e "console.log(require('./package.json').version)")
+          if [[ "${{ steps.version.outputs.version }}" != "$PKG" ]]; then
+            echo "✗ Tag says ${{ steps.version.outputs.version }} but package.json is $PKG"
+            exit 1
+          fi
+          echo "✓ Versions match"
+
+      - name: Run smoke tests
+        run: node scripts/test-compile.mjs
+
+      - name: Run examples through the compiler
+        run: |
+          mkdir -p /tmp/dynamic-plan-release
+          for ex in assets/examples/*.mdx; do
+            base=$(basename "$ex" .mdx)
+            node scripts/compile-mdx.mjs "$ex" "/tmp/dynamic-plan-release/${base}.html"
+          done
+
+      - name: Verify .npmignore does not include dev files
+        run: |
+          npm pack --dry-run 2>&1 | tee /tmp/npm-pack.txt
+          for forbidden in ".github" "CONTRIBUTING.md" "scripts/test-compile.mjs" "docs"; do
+            if grep -q "$forbidden" /tmp/npm-pack.txt; then
+              echo "✗ $forbidden leaked into npm tarball — fix .npmignore"
+              exit 1
+            fi
+            echo "✓ $forbidden excluded"
+          done
+
+      - name: Publish to npm
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --access public --provenance
+
+      - name: Extract CHANGELOG section for this version
+        id: notes
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          node scripts/changelog.mjs --version "$VERSION" > /tmp/release-notes.txt || true
+          echo "notes<<EOF" >> $GITHUB_OUTPUT
+          cat /tmp/release-notes.txt >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: "v${{ steps.version.outputs.version }}"
+          body: ${{ steps.notes.outputs.notes }}
+          draft: false
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          files: |
+            /tmp/dynamic-plan-release/*.html
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

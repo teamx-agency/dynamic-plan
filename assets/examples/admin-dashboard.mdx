@@ -1,0 +1,188 @@
+---
+title: "Admin dashboard"
+slug: "admin-dashboard"
+generatedAt: "2026-06-23T00:00:00Z"
+goal: "Internal admin dashboard with stats, tables, and bulk actions"
+status: draft
+stack: ["React", "Tailwind", "Recharts"]
+---
+
+import {
+  PlanHeader, PlanSidebar, PlanStep,
+  Screen, ScreenFrame, TopNav, SideNav, Layout, Breadcrumb, Tabs,
+  Button, Field, Input, Card, Badge, Avatar, Table, Stat, AlertBanner, Toast, ToastStack,
+  Row, Col, Grid, Divider, TextDivider,
+  DecisionForm, Decision, CopyDecisions, Callout
+} from "./components.js";
+
+<PlanHeader />
+
+<div className="plan-grid">
+
+<aside className="plan-sidebar">
+  <PlanSidebar steps={[
+    { id: "overview", title: "Overview" },
+    { id: "step-1",   title: "1. Dashboard" },
+    { id: "step-2",   title: "2. User table" },
+    { id: "step-3",   title: "3. Bulk actions" },
+    { id: "decisions", title: "Decisions" },
+  ]} />
+</aside>
+
+<main className="plan-main">
+
+<section id="overview" className="plan-card">
+  <h2>Overview</h2>
+  <p>Internal admin dashboard: top-level KPIs, user list with filters and bulk actions, real-time activity feed.</p>
+</section>
+
+<PlanStep n={1} title="Dashboard with KPIs">
+  <h4>Goal</h4>
+  <p>Top-of-funnel numbers an admin checks first thing every morning.</p>
+
+  <ScreenFrame title="Admin / Overview">
+    <Screen title="Admin" url="app.example/admin">
+      <Layout
+        brand="Admin · MyApp"
+        sections={[
+          { label: "Overview", items: ["Dashboard", "Activity feed"] },
+          { label: "Users",    items: ["All users", "Invites", "Sessions"] },
+          { label: "Billing",  items: ["Plans", "Invoices", "Refunds"] },
+          { label: "System",   items: ["Settings", "Webhooks", "Audit log"] }
+        ]}
+      >
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+          <h2 style={{ fontSize: 22, fontWeight: 600, color: "#374151", margin: 0 }}>Dashboard</h2>
+          <Row>
+            <Button variant="secondary" size="sm">Last 7 days ▾</Button>
+            <Button variant="primary" size="sm">Export</Button>
+          </Row>
+        </div>
+
+        <Grid cols={4}>
+          <Card>
+            <Stat value="12,847" label="Active users" delta="+18%" />
+          </Card>
+          <Card>
+            <Stat value="$84.2K"  label="MRR" delta="+6%" />
+          </Card>
+          <Card>
+            <Stat value="2.1%"   label="Churn" delta="-0.4%" />
+          </Card>
+          <Card>
+            <Stat value="3.2s"   label="P95 latency" delta="-0.6s" />
+          </Card>
+        </Grid>
+
+        <Divider />
+
+        <h3 style={{ fontSize: 16, fontWeight: 600, color: "#374151", marginBottom: 12 }}>Sign-ups by source</h3>
+        <Card>
+          <div style={{ display: "flex", alignItems: "flex-end", gap: 8, height: 160, padding: "12px 0" }}>
+            {[60, 75, 82, 90, 95, 88, 92, 98, 100, 95, 88, 92].map((h, i) => (
+              React.createElement("div", { key: i, style: { flex: 1, height: h + "%", background: "#eef2ff", borderRadius: 2 } })
+            ))}
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: "#9ca3af", marginTop: 4 }}>
+            <span>Jun 1</span><span>Jun 8</span><span>Jun 15</span><span>Jun 22</span>
+          </div>
+        </Card>
+      </Layout>
+    </Screen>
+  </ScreenFrame>
+</PlanStep>
+
+<PlanStep n={2} title="User table with filters">
+  <h4>Goal</h4>
+  <p>Searchable, filterable, sortable table of all users with row actions.</p>
+
+  <ScreenFrame title="Admin / Users">
+    <Screen title="Admin · Users" url="app.example/admin/users">
+      <Layout brand="Admin · MyApp" sections={[
+        { label: "Overview", items: ["Dashboard", "Activity feed"] },
+        { label: "Users",    items: ["All users", "Invites", "Sessions"] }
+      ]}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+          <h2 style={{ fontSize: 22, fontWeight: 600, color: "#374151", margin: 0 }}>All users (3,421)</h2>
+          <Row>
+            <Button variant="secondary" size="sm">Filters</Button>
+            <Button variant="primary" size="sm">+ Invite user</Button>
+          </Row>
+        </div>
+
+        <Card>
+          <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+            <div style={{ flex: 1 }}>
+              <Input placeholder="Search by name, email, or company…" />
+            </div>
+            <Button variant="secondary">Status ▾</Button>
+            <Button variant="secondary">Plan ▾</Button>
+          </div>
+
+          <Table
+            columns={["Name", "Email", "Plan", "Status", "Joined", ""]}
+            rows={5}
+          />
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 12, fontSize: 12, color: "#9ca3af" }}>
+            <span>Showing 1–5 of 3,421</span>
+            <Row>
+              <Button size="sm" variant="ghost">‹ Prev</Button>
+              <Button size="sm" variant="ghost">1</Button>
+              <Button size="sm" variant="ghost">2</Button>
+              <Button size="sm" variant="ghost">3</Button>
+              <Button size="sm" variant="ghost">Next ›</Button>
+            </Row>
+          </div>
+        </Card>
+      </Layout>
+    </Screen>
+  </ScreenFrame>
+</PlanStep>
+
+<PlanStep n={3} title="Bulk actions and feedback">
+  <h4>Goal</h4>
+  <p>Select multiple users, apply bulk action, show success toast.</p>
+
+  <ScreenFrame title="Bulk action: invite to plan">
+    <Screen title="Admin · Users" url="app.example/admin/users">
+      <Layout brand="Admin · MyApp" sections={[{ label: "Users", items: ["All users", "Invites"] }]}>
+        <AlertBanner tone="info">
+          <strong>5 users selected.</strong> Choose an action to apply to all of them.
+        </AlertBanner>
+        <Card>
+          <Row>
+            <Button variant="secondary">Send email</Button>
+            <Button variant="secondary">Move to plan ▾</Button>
+            <Button variant="destructive">Suspend</Button>
+            <Button variant="ghost">Cancel selection</Button>
+          </Row>
+        </Card>
+        <div style={{ position: "relative", height: 80, marginTop: 24 }}>
+          <ToastStack>
+            <Toast tone="success">5 users moved to "Team" plan</Toast>
+          </ToastStack>
+        </div>
+      </Layout>
+    </Screen>
+  </ScreenFrame>
+</PlanStep>
+
+<section id="decisions" className="plan-card">
+  <h2>Decisions</h2>
+  <DecisionForm id="admin-d">
+    <Decision
+      id="pagination"
+      question="Default page size?"
+      default="25"
+      options={[
+        { value: "10", label: "10 rows" },
+        { value: "25", label: "25 rows", help: "balanced" },
+        { value: "50", label: "50 rows" },
+      ]}
+    />
+  </DecisionForm>
+  <CopyDecisions target="#admin-d" />
+</section>
+
+</main>
+</div>
