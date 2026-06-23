@@ -1,0 +1,12 @@
+{
+  "name": "dynamic-plan-build",
+  "private": true,
+  "type": "module",
+  "description": "Internal build dependencies for dynamic-plan compiler (not published to npm).",
+  "dependencies": {
+    "@mdx-js/mdx": "^3.0.1"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
