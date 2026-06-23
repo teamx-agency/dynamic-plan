@@ -191,24 +191,53 @@ export function PlanSidebar(props) {
   var steps = (props && props.steps) || [];
   var firstId = steps.length ? steps[0].id : null;
   var _useState = useState(firstId), active = _useState[0], setActive = _useState[1];
+  var _useState2 = useState(steps), displaySteps = _useState2[0], setDisplaySteps = _useState2[1];
+  var planSlug = getSlug();
+
   useEffect(function () {
     var obs = new IntersectionObserver(function (entries) {
       entries.forEach(function (e) { if (e.isIntersecting) setActive(e.target.id); });
     }, { rootMargin: "-30% 0px -60% 0px" });
-    steps.forEach(function (s) {
+    displaySteps.forEach(function (s) {
       var el = document.getElementById(s.id);
       if (el) obs.observe(el);
     });
     return function () { obs.disconnect(); };
-  }, [steps]);
+  }, [displaySteps]);
+
+  // Listen for reorder events from <PlanStep> drag-and-drop.
+  useEffect(function () {
+    function reorderFromStorage() {
+      try {
+        var saved = JSON.parse(localStorage.getItem(lsKey("step-order", planSlug)) || "[]");
+        if (!saved.length) { setDisplaySteps(steps); return; }
+        var known = steps.map(function (s) { return s.id; });
+        var validOrder = saved.filter(function (id) { return known.indexOf(id) !== -1; });
+        for (var i = 0; i < steps.length; i++) {
+          if (validOrder.indexOf(steps[i].id) === -1) validOrder.push(steps[i].id);
+        }
+        var reordered = steps.slice().sort(function (a, b) {
+          return validOrder.indexOf(a.id) - validOrder.indexOf(b.id);
+        });
+        setDisplaySteps(reordered);
+      } catch (err) {}
+    }
+    function onReorder() { reorderFromStorage(); }
+    window.addEventListener("dplan:step-reorder", onReorder);
+    reorderFromStorage();
+    return function () { window.removeEventListener("dplan:step-reorder", onReorder); };
+  }, [steps, planSlug]);
+
+  var list = displaySteps;
   return h("nav", { className: "plan-sidebar-nav" },
     h("div", { className: "plan-sidebar-label" }, "Plan"),
-    steps.map(function (s) {
+    list.map(function (s) {
       var isActive = active === s.id;
       return h("a", {
         key: s.id,
         href: "#" + s.id,
-        className: "plan-step-link" + (isActive ? " active" : "")
+        className: "plan-step-link" + (isActive ? " active" : ""),
+        "data-step-id": s.id
       },
         h("span", { className: "plan-step-chevron" }, isActive ? "▾" : "▸"),
         h("span", { className: "plan-step-text" }, s.title)
@@ -220,10 +249,69 @@ export function PlanSidebar(props) {
 // ---------- PlanStep (with drag handle + wireframe toggle) ----------
 export function PlanStep(props) {
   var n = props.n, title = props.title, children = props.children;
-  return h("section", { id: "step-" + n, className: "plan-card plan-step", "data-step": n },
-    h("div", { className: "plan-step-handle", title: "Drag to reorder (visual only)" }, "⋮⋮"),
+  var _useState = useState(""), dragClass = _useState[0], setDragClass = _useState[1];
+  var planSlug = getSlug();
+  var stepKey = "step-" + n;
+
+  // Read initial order from localStorage (steps reordered previously).
+  // If user reordered, our step number n is now stale; show the order index.
+  var _useState2 = useState(function () {
+    try {
+      var saved = localStorage.getItem(lsKey("step-order", planSlug));
+      if (saved) return JSON.parse(saved);
+    } catch (e) {}
+    return null;
+  }), order = _useState2[0], setOrder = _useState2[1];
+
+  // Compute display position from order, fallback to n.
+  var displayPos = order ? (order.indexOf(stepKey) + 1) : n;
+  if (displayPos < 1) displayPos = n;
+
+  function handleDragStart(e) {
+    e.dataTransfer.setData("text/plain", stepKey);
+    e.dataTransfer.effectAllowed = "move";
+    setDragClass("dragging");
+  }
+  function handleDragEnd() { setDragClass(""); }
+  function handleDragOver(e) { e.preventDefault(); e.dataTransfer.dropEffect = "move"; setDragClass("drag-over"); }
+  function handleDragLeave() { setDragClass(""); }
+  function handleDrop(e) {
+    e.preventDefault();
+    var draggedKey = e.dataTransfer.getData("text/plain");
+    if (!draggedKey || draggedKey === stepKey) { setDragClass(""); return; }
+    try {
+      var currentOrder = order ? order.slice() : Array.from({ length: 9 }, function (_, i) { return "step-" + (i + 1); }).filter(function (k) { return k !== "decisions" && k !== "overview"; });
+      // Initialize with current known order if empty
+      if (currentOrder.indexOf(draggedKey) === -1) currentOrder.push(draggedKey);
+      if (currentOrder.indexOf(stepKey) === -1) currentOrder.push(stepKey);
+      // Reorder: remove draggedKey, insert at stepKey position
+      var draggedIdx = currentOrder.indexOf(draggedKey);
+      currentOrder.splice(draggedIdx, 1);
+      var targetIdx = currentOrder.indexOf(stepKey);
+      currentOrder.splice(targetIdx, 0, draggedKey);
+      localStorage.setItem(lsKey("step-order", planSlug), JSON.stringify(currentOrder));
+      setOrder(currentOrder);
+      setDragClass("");
+      // Notify the sidebar to refresh
+      window.dispatchEvent(new CustomEvent("dplan:step-reorder", { detail: { order: currentOrder } }));
+    } catch (err) { setDragClass(""); }
+  }
+
+  return h("section", {
+    id: "step-" + n,
+    "data-step": n,
+    "data-step-key": stepKey,
+    className: "plan-card plan-step" + (dragClass ? " " + dragClass : ""),
+    draggable: "true",
+    onDragStart: handleDragStart,
+    onDragEnd: handleDragEnd,
+    onDragOver: handleDragOver,
+    onDragLeave: handleDragLeave,
+    onDrop: handleDrop
+  },
+    h("div", { className: "plan-step-handle", title: "Drag to reorder" }, "⋮⋮"),
     h("div", { className: "plan-step-head" },
-      h("span", { className: "plan-step-num" }, n),
+      h("span", { className: "plan-step-num" }, displayPos),
       h("h2", { className: "plan-step-title" }, title)
     ),
     h("div", { className: "plan-step-body" }, children)
@@ -472,7 +560,43 @@ export function Decision(props) {
 export function CopyDecisions(props) {
   var target = props.target;
   var _useState4 = useState("📋 Copy decisions"), label = _useState4[0], setLabel = _useState4[1];
+  var _useState5 = useState("💾 Export JSON"), exportLabel = _useState5[0], setExportLabel = _useState5[1];
   return h("div", { className: "copy-bar" },
+    h("button", {
+      className: "export-link",
+      onClick: function () {
+        var formEl = document.querySelector(target);
+        if (!formEl) return;
+        var result = readDecisions(formEl);
+        var planSlug = getSlug();
+        // Build a richer JSON payload than the @dynamic-plan copy block.
+        var stepOrder = [];
+        try { stepOrder = JSON.parse(localStorage.getItem(lsKey("step-order", planSlug)) || "[]"); } catch (e) {}
+        var payload = {
+          plan: {
+            slug: planSlug,
+            title: document.querySelector(".plan-title") ? document.querySelector(".plan-title").textContent : null,
+            goal: document.querySelector(".plan-goal") ? document.querySelector(".plan-goal").textContent : null
+          },
+          generatedAt: new Date().toISOString(),
+          stepOrder: stepOrder,
+          decisions: result.data,
+          notes: result.notes
+        };
+        var json = JSON.stringify(payload, null, 2);
+        var blob = new Blob([json], { type: "application/json" });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement("a");
+        a.href = url;
+        a.download = "dynamic-plan-" + planSlug + "-decisions.json";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+        setExportLabel("✅ Downloaded!");
+        setTimeout(function () { setExportLabel("💾 Export JSON"); }, 2500);
+      }
+    }, exportLabel),
     h("button", {
       className: "secondary",
       onClick: function () {
@@ -528,16 +652,87 @@ function wfClass(...names) {
 export function Screen(props) {
   var title = props.title || "Screen";
   var url = props.url || "/path";
+  var mode = props.mode; // "wireframe" (default) | "hi-fi"
+  var device = props.device || "desktop"; // "desktop" | "mobile"
   var children = props.children;
-  return h("div", { className: "wf-screen", "data-title": title },
-    h("div", { className: "wf-screen-header" },
-      h("span", { className: "wf-screen-dot" }),
-      h("span", { className: "wf-screen-dot" }),
-      h("span", { className: "wf-screen-dot" }),
-      h("span", { className: "wf-screen-url" }, url)
-    ),
-    h("div", { className: "wf-screen-body" }, children)
+  var className = "wf-screen wf-mode-" + mode + " wf-device-" + device;
+  return h("div", { className: className, "data-title": title },
+    device === "mobile"
+      ? h("div", { className: "wf-mobile-notch" },
+          h("span", { className: "wf-mobile-notch-speaker" }),
+          h("span", { className: "wf-mobile-notch-camera" })
+        )
+      : h("div", { className: "wf-screen-header" },
+          h("span", { className: "wf-screen-dot" }),
+          h("span", { className: "wf-screen-dot" }),
+          h("span", { className: "wf-screen-dot" }),
+          h("span", { className: "wf-screen-url" }, url)
+        ),
+    h("div", { className: "wf-screen-body" }, children),
+    device === "mobile" && h("div", { className: "wf-mobile-home-indicator" })
   );
+}
+
+// ---------- ViewModeToggle (plan-level: wireframe vs hi-fi) ----------
+export function ViewModeToggle() {
+  var _useState = useState(function () {
+    try {
+      var v = localStorage.getItem(lsKey("view-mode", getSlug()));
+      return v || "wireframe";
+    } catch (e) { return "wireframe"; }
+  }), mode = _useState[0], setMode = _useState[1];
+
+  function toggle(next) {
+    setMode(next);
+    try { localStorage.setItem(lsKey("view-mode", getSlug()), next); } catch (e) {}
+    document.documentElement.setAttribute("data-wf-mode", next);
+  }
+
+  // Apply on mount
+  if (typeof document !== "undefined") {
+    document.documentElement.setAttribute("data-wf-mode", mode);
+  }
+
+  return h("div", { className: "wf-view-toggle", role: "tablist", "aria-label": "View mode" },
+    h("button", {
+      className: "wf-view-tab" + (mode === "wireframe" ? " active" : ""),
+      onClick: function () { toggle("wireframe"); },
+      "aria-pressed": mode === "wireframe"
+    }, "🎨 Wireframe"),
+    h("button", {
+      className: "wf-view-tab" + (mode === "hi-fi" ? " active" : ""),
+      onClick: function () { toggle("hi-fi"); },
+      "aria-pressed": mode === "hi-fi"
+    }, "✨ Hi-Fi")
+  );
+}
+
+// Plugins: when window.DPLAN_PLUGINS is set (array of component maps), merge them
+// into the default components map. See docs/plugin-api.md.
+function resolveComponents() {
+  var map = {
+    PlanHeader: PlanHeader, ProgressBar: ProgressBar, PlanSidebar: PlanSidebar,
+    PlanStep: PlanStep, Mermaid: Mermaid, Wireframe: Wireframe, Callout: Callout,
+    DecisionForm: DecisionForm, Decision: Decision, CopyDecisions: CopyDecisions,
+    Screen: Screen, ScreenFrame: ScreenFrame, TopNav: TopNav, SideNav: SideNav,
+    Layout: Layout, Breadcrumb: Breadcrumb, Tabs: Tabs, Button: Button, Field: Field,
+    Input: Input, Select: Select, Textarea: Textarea, Checkbox: Checkbox, Radio: Radio,
+    Toggle: Toggle, Card: Card, Modal: Modal, Toast: Toast, ToastStack: ToastStack,
+    AlertBanner: AlertBanner, Table: Table, Avatar: Avatar, Badge: Badge, Stat: Stat,
+    Divider: Divider, TextDivider: TextDivider, Row: Row, Col: Col, Grid: Grid,
+    ViewModeToggle: ViewModeToggle
+  };
+  if (typeof window !== "undefined" && Array.isArray(window.DPLAN_PLUGINS)) {
+    for (var i = 0; i < window.DPLAN_PLUGINS.length; i++) {
+      var plugin = window.DPLAN_PLUGINS[i];
+      if (plugin && typeof plugin === "object") {
+        for (var k in plugin) {
+          if (Object.prototype.hasOwnProperty.call(plugin, k)) map[k] = plugin[k];
+        }
+      }
+    }
+  }
+  return map;
 }
 
 // ---------- ScreenFrame (with title + description above the screen) ----------
@@ -872,5 +1067,8 @@ export default {
   TextDivider: TextDivider,
   Row: Row,
   Col: Col,
-  Grid: Grid
+  Grid: Grid,
+  ViewModeToggle: ViewModeToggle,
+  // Plugin API
+  resolveComponents: resolveComponents
 };
