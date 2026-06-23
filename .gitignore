@@ -1,6 +1,9 @@
 # Dependencies
 node_modules/
+# Top-level package-lock.json is excluded (we don't publish it).
+# But scripts/package-lock.json IS committed so CI can cache deps.
 package-lock.json
+!scripts/package-lock.json
 
 # Build artifacts
 *.html
