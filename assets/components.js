@@ -757,6 +757,317 @@ export function StepNotes(props) {
   );
 }
 
+// ---------- BarChart (SVG, no deps) ----------
+// data: [{ label: 'Jan', value: 12, color: '...' }, ...]
+// options: { height?, showValues?, showAxis?, format?(v)=>string }
+export function BarChart(props) {
+  var data = (props && props.data) || [];
+  var title = props.title;
+  var opts = (props && props.options) || {};
+  var height = opts.height || 180;
+  var showValues = opts.showValues !== false;
+  var showAxis = opts.showAxis !== false;
+  var format = opts.format || function (v) { return String(v); };
+
+  if (!data.length) {
+    return h("div", { className: "wf-bar-chart empty" }, "No data");
+  }
+
+  var max = Math.max.apply(null, data.map(function (d) { return d.value; }));
+  var maxRounded = Math.ceil(max * 1.1);
+  if (maxRounded === 0) maxRounded = 1;
+  var barWidthPct = 100 / data.length;
+  var innerBarWidth = Math.max(8, Math.min(60, barWidthPct * 0.6));
+
+  return h("div", { className: "wf-bar-chart" },
+    title && h("div", { className: "wf-bar-chart-title" }, title),
+    h("div", { className: "wf-bar-chart-svg-wrap" },
+      h("svg", { viewBox: "0 0 600 " + height, preserveAspectRatio: "xMidYMid meet", className: "wf-bar-chart-svg", role: "img", "aria-label": title || "Bar chart" },
+        // Y-axis grid lines (4 ticks)
+        showAxis && [0, 0.25, 0.5, 0.75, 1].map(function (t, i) {
+          var y = height - 30 - (height - 50) * t;
+          return h("g", { key: "g" + i },
+            h("line", { x1: 40, y1: y, x2: 590, y2: y, stroke: "var(--wf-chart-grid, #e5e7eb)", "stroke-width": 1, "stroke-dasharray": t === 0 ? "0" : "2 2" }),
+            h("text", { x: 36, y: y + 4, "text-anchor": "end", "font-size": 10, fill: "var(--wf-chart-axis, #9ca3af)" }, format(maxRounded * t))
+          );
+        }),
+        // Bars
+        data.map(function (d, i) {
+          var x = 50 + i * (560 / data.length) + (560 / data.length - innerBarWidth) / 2;
+          var barH = (height - 50) * (d.value / maxRounded);
+          var y = height - 30 - barH;
+          var color = d.color || "var(--wf-chart-bar, #4f46e5)";
+          return h("g", { key: d.label || i },
+            h("rect", { x: x, y: y, width: innerBarWidth, height: barH, fill: color, rx: 2 }),
+            showValues && h("text", { x: x + innerBarWidth / 2, y: y - 4, "text-anchor": "middle", "font-size": 10, fontWeight: 600, fill: "var(--wf-chart-value, #374151)" }, format(d.value)),
+            h("text", { x: x + innerBarWidth / 2, y: height - 14, "text-anchor": "middle", "font-size": 10, fill: "var(--wf-chart-axis, #9ca3af)" }, d.label)
+          );
+        })
+      )
+    )
+  );
+}
+
+// ---------- DataTable (with sort + filter) ----------
+// columns: [{ key, label, sortable?, format?(v,row)? }]
+// rows: array of objects keyed by column.key
+// options: { defaultSort?, searchable?, pageSize? }
+export function DataTable(props) {
+  var columns = (props && props.columns) || [];
+  var rows = (props && props.rows) || [];
+  var title = props.title;
+  var opts = (props && props.options) || {};
+
+  var _useState = useState(opts.defaultSort || null), sortKey = _useState[0], setSortKey = _useState[1];
+  var _useState2 = useState(opts.defaultSortDesc || false), sortDesc = _useState2[0], setSortDesc = _useState2[1];
+  var _useState3 = useState(""), filter = _useState3[0], setFilter = _useState3[1];
+  var _useState4 = useState(1), page = _useState4[0], setPage = _useState4[1];
+  var pageSize = opts.pageSize || 10;
+  var searchable = opts.searchable !== false;
+
+  function toggleSort(key) {
+    if (sortKey === key) setSortDesc(!sortDesc);
+    else { setSortKey(key); setSortDesc(false); }
+    setPage(1);
+  }
+
+  // Filter
+  var filtered = filter
+    ? rows.filter(function (row) {
+        var hay = columns.map(function (c) { return String(row[c.key] != null ? row[c.key] : ""); }).join(" ").toLowerCase();
+        return hay.indexOf(filter.toLowerCase()) !== -1;
+      })
+    : rows;
+
+  // Sort
+  var sorted = sortKey
+    ? filtered.slice().sort(function (a, b) {
+        var av = a[sortKey], bv = b[sortKey];
+        if (typeof av === "number" && typeof bv === "number") return sortDesc ? bv - av : av - bv;
+        av = String(av || ""); bv = String(bv || "");
+        return sortDesc ? bv.localeCompare(av) : av.localeCompare(bv);
+      })
+    : filtered;
+
+  var totalPages = Math.max(1, Math.ceil(sorted.length / pageSize));
+  var pageRows = sorted.slice((page - 1) * pageSize, page * pageSize);
+
+  return h("div", { className: "wf-data-table" },
+    (title || searchable) && h("div", { className: "wf-data-table-header" },
+      title && h("div", { className: "wf-data-table-title" }, title),
+      searchable && h("input", {
+        type: "search",
+        className: "wf-data-table-search",
+        placeholder: "🔍 Search…",
+        value: filter,
+        onChange: function (e) { setFilter(e.target.value); setPage(1); }
+      })
+    ),
+    h("table", { className: "wf-data-table-table" },
+      h("thead", null,
+        h("tr", null,
+          columns.map(function (c) {
+            var sortable = c.sortable !== false;
+            var isActive = sortKey === c.key;
+            return h("th", {
+              key: c.key,
+              className: sortable ? "sortable" : "",
+              onClick: function () { if (sortable) toggleSort(c.key); }
+            },
+              c.label,
+              sortable && h("span", { className: "wf-sort-arrow" }, isActive ? (sortDesc ? " ▼" : " ▲") : " ↕")
+            );
+          })
+        )
+      ),
+      h("tbody", null,
+        pageRows.length
+          ? pageRows.map(function (row, i) {
+              return h("tr", { key: i },
+                columns.map(function (c) {
+                  var raw = row[c.key];
+                  var content = c.format ? c.format(raw, row) : (raw != null ? String(raw) : "");
+                  return h("td", { key: c.key }, content);
+                })
+              );
+            })
+          : h("tr", null, h("td", { colSpan: columns.length, className: "wf-data-table-empty" }, "No rows match."))
+      )
+    ),
+    totalPages > 1 && h("div", { className: "wf-data-table-pager" },
+      h("button", { onClick: function () { setPage(Math.max(1, page - 1)); }, disabled: page === 1 }, "‹ Prev"),
+      h("span", null, page + " / " + totalPages + " (" + sorted.length + ")"),
+      h("button", { onClick: function () { setPage(Math.min(totalPages, page + 1)); }, disabled: page === totalPages }, "Next ›")
+    )
+  );
+}
+
+// ---------- Timeline (vertical chronological events) ----------
+// events: [{ date: '2026-06-23', title: '...', body?: '...', tone?: 'info|success|warn|danger' }]
+export function Timeline(props) {
+  var events = (props && props.events) || [];
+  var title = props.title;
+  if (!events.length) return h("div", { className: "wf-timeline empty" }, "No events");
+  return h("div", { className: "wf-timeline" },
+    title && h("div", { className: "wf-timeline-title" }, title),
+    events.map(function (e, i) {
+      var tone = e.tone || "info";
+      return h("div", { key: i, className: "wf-timeline-item wf-timeline-" + tone },
+        h("div", { className: "wf-timeline-dot" }),
+        h("div", { className: "wf-timeline-card" },
+          h("div", { className: "wf-timeline-date" }, e.date),
+          h("div", { className: "wf-timeline-title-text" }, e.title),
+          e.body && h("div", { className: "wf-timeline-body" }, e.body)
+        )
+      );
+    })
+  );
+}
+
+// ---------- KanbanBoard (columns + draggable cards) ----------
+// columns: [{ id, title, cards: [{ id, title, body?, tone? }] }]
+// options: { onMove?(cardId, fromCol, toCol)?, readonly? }
+export function KanbanBoard(props) {
+  var initialColumns = (props && props.columns) || [];
+  var title = props.title;
+  var opts = (props && props.options) || {};
+  var readonly = !!opts.readonly;
+  var _useState = useState(initialColumns), columns = _useState[0], setColumns = _useState[1];
+  var _useState2 = useState(null), dragInfo = _useState2[0], setDragInfo = _useState2[1];
+
+  function onDragStart(e, cardId, fromColId) {
+    if (readonly) return;
+    e.dataTransfer.setData("text/plain", JSON.stringify({ cardId: cardId, fromColId: fromColId }));
+    e.dataTransfer.effectAllowed = "move";
+    setDragInfo({ cardId: cardId, fromColId: fromColId });
+  }
+  function onDragOver(e) { if (!readonly) { e.preventDefault(); e.dataTransfer.dropEffect = "move"; } }
+  function onDrop(e, toColId) {
+    if (readonly) return;
+    e.preventDefault();
+    try {
+      var data = JSON.parse(e.dataTransfer.getData("text/plain"));
+      if (data.fromColId === toColId) { setDragInfo(null); return; }
+      var next = columns.map(function (c) {
+        var cards = c.cards.slice();
+        if (c.id === data.fromColId) cards = cards.filter(function (cd) { return cd.id !== data.cardId; });
+        return Object.assign({}, c, { cards: cards });
+      }).map(function (c) {
+        if (c.id !== toColId) return c;
+        var movingCard = null;
+        columns.forEach(function (src) {
+          if (src.id === data.fromColId) src.cards.forEach(function (cd) { if (cd.id === data.cardId) movingCard = cd; });
+        });
+        return Object.assign({}, c, { cards: c.cards.concat([movingCard].filter(Boolean)) });
+      });
+      setColumns(next);
+      setDragInfo(null);
+      if (typeof opts.onMove === "function") opts.onMove(data.cardId, data.fromColId, toColId);
+    } catch (e) { setDragInfo(null); }
+  }
+
+  return h("div", { className: "wf-kanban" },
+    title && h("div", { className: "wf-kanban-title" }, title),
+    h("div", { className: "wf-kanban-board" + (readonly ? " readonly" : "") },
+      columns.map(function (col) {
+        var isDragOver = dragInfo && dragInfo.fromColId !== col.id;
+        return h("div", {
+          key: col.id, className: "wf-kanban-col" + (isDragOver ? " drag-target" : ""),
+          onDragOver: onDragOver, onDrop: function (e) { onDrop(e, col.id); }
+        },
+          h("div", { className: "wf-kanban-col-head" },
+            h("span", { className: "wf-kanban-col-title" }, col.title),
+            h("span", { className: "wf-kanban-col-count" }, col.cards.length)
+          ),
+          h("div", { className: "wf-kanban-col-cards" },
+            col.cards.map(function (card) {
+              var dragging = dragInfo && dragInfo.cardId === card.id;
+              var tone = card.tone || "default";
+              return h("div", {
+                key: card.id,
+                className: "wf-kanban-card wf-kanban-card-" + tone + (dragging ? " dragging" : ""),
+                draggable: !readonly,
+                onDragStart: function (e) { onDragStart(e, card.id, col.id); }
+              },
+                h("div", { className: "wf-kanban-card-title" }, card.title),
+                card.body && h("div", { className: "wf-kanban-card-body" }, card.body)
+              );
+            })
+          )
+        );
+      })
+    )
+  );
+}
+
+// ---------- GanttChart (timeline with tasks + dependencies) ----------
+// tasks: [{ id, name, start: dayIndex, end: dayIndex, lane: 'lane-id', progress?: 0-100, deps?: [taskId,...] }]
+// lanes: [{ id, label, color? }]
+// options: { startLabel?, endLabel?, totalDays?, today? }
+export function GanttChart(props) {
+  var tasks = (props && props.tasks) || [];
+  var lanes = (props && props.lanes) || [];
+  var title = props.title;
+  var opts = (props && props.options) || {};
+  var totalDays = opts.totalDays || 30;
+  var startLabel = opts.startLabel || "Day 1";
+  var endLabel = opts.endLabel || "Day " + totalDays;
+  var today = opts.today;
+
+  // Default: one lane "default"
+  if (!lanes.length) lanes = [{ id: "default", label: "Tasks" }];
+  var laneIds = lanes.map(function (l) { return l.id; });
+
+  return h("div", { className: "wf-gantt" },
+    title && h("div", { className: "wf-gantt-title" }, title),
+    h("div", { className: "wf-gantt-grid", style: { gridTemplateColumns: "140px 1fr" } },
+      // Header row: empty lane column + day scale
+      h("div", { className: "wf-gantt-cell wf-gantt-lane-head" }, ""),
+      h("div", { className: "wf-gantt-cell wf-gantt-day-scale" },
+        Array.from({ length: totalDays }).map(function (_, i) {
+          var isToday = today === (i + 1);
+          return h("div", { key: i, className: "wf-gantt-day" + (isToday ? " today" : "") },
+            i === 0 || i === totalDays - 1 || isToday ? (i + 1) : ""
+          );
+        })
+      ),
+      // Lane rows
+      lanes.map(function (lane) {
+        return h("div", { key: lane.id, className: "wf-gantt-row", style: { gridTemplateColumns: "140px 1fr" } },
+          h("div", { className: "wf-gantt-cell wf-gantt-lane-label" },
+            h("span", { className: "wf-gantt-lane-dot", style: { background: lane.color || "var(--accent)" } }),
+            lane.label
+          ),
+          h("div", { className: "wf-gantt-cell wf-gantt-track" },
+            Array.from({ length: totalDays }).map(function (_, i) {
+              return h("div", { key: i, className: "wf-gantt-day-cell" + (today === (i + 1) ? " today" : "") });
+            }),
+            tasks.filter(function (t) { return (t.lane || "default") === lane.id; }).map(function (task) {
+              var left = (task.start - 1) / totalDays * 100;
+              var width = (task.end - task.start + 1) / totalDays * 100;
+              var color = task.color || lane.color || "var(--accent)";
+              return h("div", {
+                key: task.id,
+                className: "wf-gantt-task",
+                style: { left: left + "%", width: width + "%", background: color },
+                title: task.name + " (" + task.start + "-" + task.end + ")"
+              },
+                h("div", { className: "wf-gantt-task-name" }, task.name),
+                typeof task.progress === "number" && task.progress > 0 && task.progress < 100 && h("div", { className: "wf-gantt-task-progress", style: { width: task.progress + "%" } }),
+                task.deps && task.deps.length > 0 && h("div", { className: "wf-gantt-task-deps" }, "↳ " + task.deps.join(", "))
+              );
+            })
+          )
+        );
+      })
+    ),
+    h("div", { className: "wf-gantt-footer" },
+      h("span", null, startLabel + " → " + endLabel),
+      tasks.length > 0 && h("span", { className: "wf-gantt-task-count" }, tasks.length + " tasks")
+    )
+  );
+}
+
 // ---------- Screen (frame wrapper) ----------
 export function Screen(props) {
   var title = props.title || "Screen";
@@ -1178,6 +1489,12 @@ export default {
   Col: Col,
   Grid: Grid,
   ViewModeToggle: ViewModeToggle,
+  // Data viz & interactive
+  BarChart: BarChart,
+  DataTable: DataTable,
+  Timeline: Timeline,
+  KanbanBoard: KanbanBoard,
+  GanttChart: GanttChart,
   // Plugin API
   resolveComponents: resolveComponents
 };
