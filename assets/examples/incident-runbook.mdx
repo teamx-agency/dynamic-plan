@@ -1,0 +1,226 @@
+---
+title: "Runbook: API 5xx spike"
+slug: "runbook-api-5xx-spike"
+generatedAt: "2026-06-23T00:00:00Z"
+goal: "Triage + mitigate the API 5xx error rate spike (P95 latency >3s, error rate >5%)"
+status: draft
+stack: ["Datadog", "Grafana", "PagerDuty", "AWS ECS", "PostgreSQL"]
+---
+
+import {
+  PlanHeader, PlanSidebar, PlanStep,
+  Screen, ScreenFrame, TopNav, SideNav, Layout, Breadcrumb, Tabs,
+  Button, Field, Input, Select, Checkbox, Radio, Toggle,
+  Card, Modal, Toast, ToastStack, AlertBanner, Table, Avatar, Badge, Stat,
+  Row, Col, Grid, Divider, TextDivider, ViewModeToggle,
+  BarChart, DataTable, Timeline, KanbanBoard, GanttChart,
+  Callout, DecisionForm, Decision, CopyDecisions
+} from "./components.js";
+
+<PlanHeader />
+<ViewModeToggle />
+
+<div className="plan-grid">
+
+<aside className="plan-sidebar">
+  <PlanSidebar steps={[
+    { id: "overview", title: "Overview" },
+    { id: "step-1", title: "1. Detect" },
+    { id: "step-2", title: "2. Triage" },
+    { id: "step-3", title: "3. Mitigate" },
+    { id: "step-4", title: "4. Resolve" },
+    { id: "step-5", title: "5. Postmortem" },
+    { id: "decisions", title: "Decisions" },
+  ]} />
+</aside>
+
+<main className="plan-main">
+
+<section id="overview" className="plan-card">
+  <h2>Overview</h2>
+  <Callout emoji="🚨" tone="danger">
+    <strong>SEV-2 INCIDENT:</strong> API 5xx error rate spiked to 7.4% at 14:23 UTC (threshold: 1%). P95 latency: 4.8s. Affects: all mobile clients + 12 enterprise SSO tenants.
+  </Callout>
+
+  <Row>
+    <Card><Stat value="7.4%" label="5xx rate" delta="+640%" /></Card>
+    <Card><Stat value="4.8s" label="P95 latency" delta="+260%" /></Card>
+    <Card><Stat value="142" label="Affected tenants" /></Card>
+    <Card><Stat value="$8.2K" label="Est. revenue/min" /></Card>
+  </Row>
+
+  <Callout emoji="📘" tone="info">
+    This is an <strong>incident runbook</strong>, not a feature plan. The structure is: detect → triage → mitigate → resolve → postmortem. Wireframes and data viz are minimal — focus is on the runbook checklist, dashboard, and decision points.
+  </Callout>
+</section>
+
+<PlanStep n={1} title="Detect (T+0 to T+5 min)">
+  <h4>Goals</h4>
+  <ul>
+    <li>Confirm the alert is real (not a flapping dashboard)</li>
+    <li>Page the on-call SRE if user impact is significant</li>
+    <li>Open the war room channel</li>
+  </ul>
+
+  <h4>Detection dashboard</h4>
+  <Row>
+    <Card>
+      <BarChart
+        title="5xx rate over last hour"
+        data={[
+          { label: "T-60", value: 0.4 },
+          { label: "T-50", value: 0.5 },
+          { label: "T-40", value: 0.6 },
+          { label: "T-30", value: 0.7 },
+          { label: "T-20", value: 1.1 },
+          { label: "T-10", value: 4.2, color: "#ef4444" },
+          { label: "T-0",  value: 7.4, color: "#dc2626" },
+        ]}
+        options={{ format: function (v) { return v + "%"; } }}
+      />
+    </Card>
+    <Card>
+      <Stat value="14:23 UTC" label="First alert fired" />
+      <Stat value="14:25 UTC" label="On-call paged" />
+      <Stat value="14:28 UTC" label="War room opened" />
+    </Card>
+  </Row>
+</PlanStep>
+
+<PlanStep n={2} title="Triage (T+5 to T+15 min)">
+  <h4>Find the blast radius</h4>
+  <ul>
+    <li><input type="checkbox" data-progress /> Which endpoints are returning 5xx? (top 10 from Datadog)</li>
+    <li><input type="checkbox" data-progress /> Is it region-wide or specific AZs?</li>
+    <li><input type="checkbox" data-progress /> Is the database the culprit? (check connection pool saturation)</li>
+    <li><input type="checkbox" data-progress /> Is it a deploy? (check ECS task events, last deploy timestamp)</li>
+    <li><input type="checkbox" data-progress /> Is it a third-party dependency? (Stripe, Auth0, SendGrid status pages)</li>
+    <li><input type="checkbox" data-progress /> Can we correlate with any recent config change?</li>
+  </ul>
+
+  <h4>Likely suspects (last 24h)</h4>
+  <DataTable
+    title="Recent changes to production"
+    columns={[
+      { key: "time",   label: "Time (UTC)", sortable: true },
+      { key: "what",   label: "Change" },
+      { key: "who",    label: "Author", sortable: true },
+      { key: "suspect", label: "Likelihood" },
+    ]}
+    rows={[
+      { time: "14:18", what: "Deploy: api-gateway v2.7.3",     who: "ci-bot",       suspect: "High" },
+      { time: "13:50", what: "DB migration: index users.email_lower", who: "priya",      suspect: "Medium" },
+      { time: "13:22", what: "Stripe webhook URL rotated",     who: "stripe-team",  suspect: "Low" },
+      { time: "12:40", what: "Auth0 tenant config updated",   who: "auth-admin",   suspect: "Low" },
+      { time: "11:15", what: "Deploy: billing-worker v1.12.0", who: "ci-bot",       suspect: "Medium" },
+    ]}
+    options={{ pageSize: 10, defaultSort: "suspect" }}
+  />
+</PlanStep>
+
+<PlanStep n={3} title="Mitigate (T+15 to T+30 min)">
+  <h4>Stabilize before fixing</h4>
+  <Callout emoji="⏸️" tone="warn">
+    Goal: <strong>stop the bleeding</strong>, not fix the bug. Mitigation comes first, root-cause comes later.
+  </Callout>
+
+  <h4>Mitigation playbook</h4>
+  <KanbanBoard
+    title="Mitigation actions (run in parallel)"
+    columns={[
+      { id: "now", title: "Do immediately", cards: [
+        { id: "rollback", title: "Rollback deploy v2.7.3", body: "If 5xx correlates with deploy window", tone: "danger" },
+        { id: "cache",    title: "Bump CDN cache TTL to 1h",  body: "Absorb the spike at edge",            tone: "warn" },
+      ]},
+      { id: "next", title: "Within 15 min", cards: [
+        { id: "pool",  title: "Scale DB pool +50%",       body: "If connection pool is the bottleneck",  tone: "warn" },
+        { id: "rate",  title: "Lower rate limits 50%",    body: "Reduce cascading failure pressure",     tone: "info" },
+      ]},
+      { id: "watch", title: "Monitor", cards: [
+        { id: "dash",  title: "Watch error budget burn",  body: "Alert at 80% consumed",                tone: "info" },
+        { id: "sup",   title: "Post status page update",  body: "After first mitigation lands",         tone: "info" },
+      ]},
+    ]}
+  />
+</PlanStep>
+
+<PlanStep n={4} title="Resolve (T+30 min to T+2h)">
+  <h4>Find the root cause, ship the fix</h4>
+  <ul>
+    <li><input type="checkbox" data-progress /> Reproduce in staging (or against prod canary)</li>
+    <li><input type="checkbox" data-progress /> Add a regression test before shipping fix</li>
+    <li><input type="checkbox" data-progress /> Roll out fix at 10% → 50% → 100% canary</li>
+    <li><input type="checkbox" data-progress /> Verify 5xx rate drops below 0.5% (the SLO)</li>
+    <li><input type="checkbox" data-progress /> Update status page: <Badge variant="success">Resolved</Badge></li>
+    <li><input type="checkbox" data-progress /> Notify affected tenants via support + in-app banner</li>
+  </ul>
+
+  <h4>Resolution timeline (target)</h4>
+  <Timeline
+    title="Resolution progression"
+    events={[
+      { date: "T+0",   title: "Alert fires",       tone: "danger" },
+      { date: "T+2",   title: "On-call paged",     tone: "warn" },
+      { date: "T+5",   title: "War room opens",    tone: "info" },
+      { date: "T+15",  title: "Rollback deployed", tone: "info" },
+      { date: "T+22",  title: "5xx returns to <1%", tone: "success" },
+      { date: "T+45",  title: "Root cause identified", tone: "info" },
+      { date: "T+90",  title: "Fix shipped to 100%",  tone: "success" },
+      { date: "T+48h", title: "Postmortem published", tone: "success" },
+    ]}
+  />
+</PlanStep>
+
+<PlanStep n={5} title="Postmortem (within 48h)">
+  <h4>Goals</h4>
+  <ul>
+    <li>Blameless root-cause analysis</li>
+    <li>Identify the 2-3 systemic improvements that prevent this class of incident</li>
+    <li>Assign owners + deadlines for the action items</li>
+  </ul>
+
+  <h4>Action item tracker</h4>
+  <KanbanBoard
+    title="Postmortem action items"
+    columns={[
+      { id: "todo",   title: "To do", cards: [
+        { id: "alert",  title: "Add pre-deploy canary metric", body: "Owner: sre-team · Due: Wk+1", tone: "warn" },
+        { id: "runbook",title: "Document rollback steps",      body: "Owner: ci-team · Due: Wk+1",  tone: "info" },
+        { id: "load",   title: "Add load test for 5x traffic",   body: "Owner: sre-team · Due: Wk+2", tone: "info" },
+      ]},
+      { id: "doing",  title: "In progress", cards: [] },
+      { id: "done",   title: "Done", cards: [
+        { id: "post",   title: "Postmortem doc published", body: "Owner: on-call · Done", tone: "success" },
+      ]},
+    ]}
+  />
+</PlanStep>
+
+<section id="decisions" className="plan-card">
+  <h2>Decisions during the incident</h2>
+  <DecisionForm id="rb-d">
+    <Decision
+      id="rollback"
+      question="First mitigation action?"
+      default="rollback"
+      options={[
+        { value: "rollback", label: "Rollback the deploy",         help: "Fastest path to stability if deploy-related" },
+        { value: "scale",    label: "Scale infrastructure first", help: "If we suspect load, not deploy" },
+        { value: "wait",     label: "Wait 5 min, re-evaluate",    help: "If alert is unclear or flapping" },
+      ]}
+    />
+    <Decision
+      id="comm-channel"
+      question="Where do we coordinate?"
+      default="war-room"
+      options={[
+        { value: "war-room", label: "Open #inc-2024-0815-war-room", help: "Dedicated incident channel" },
+        { value: "existing", label: "Use existing #ops-alerts",     help: "Lower friction if small" },
+      ]}
+    />
+  </DecisionForm>
+  <CopyDecisions target="#rb-d" />
+</section>
+
+</main>
+</div>

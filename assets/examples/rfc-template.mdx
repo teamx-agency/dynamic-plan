@@ -1,0 +1,205 @@
+---
+title: "RFC: Migrate the dashboard to React 18"
+slug: "rfc-dashboard-react-migration"
+generatedAt: "2026-06-23T00:00:00Z"
+goal: "RFC for migrating the legacy jQuery dashboard to React 18 — proposal, alternatives, timeline, and risks"
+status: draft
+stack: ["React 18", "TypeScript", "Vite", "jQuery 3.7"]
+---
+
+import {
+  PlanHeader, PlanSidebar, PlanStep,
+  Screen, ScreenFrame, TopNav, SideNav, Layout, Breadcrumb, Tabs,
+  Button, Field, Input, Select, Checkbox, Radio, Toggle,
+  Card, Modal, Toast, ToastStack, AlertBanner, Table, Avatar, Badge, Stat,
+  Row, Col, Grid, Divider, TextDivider, ViewModeToggle,
+  BarChart, DataTable, Timeline, KanbanBoard, GanttChart,
+  Callout, DecisionForm, Decision, CopyDecisions
+} from "./components.js";
+
+<PlanHeader />
+<ViewModeToggle />
+
+<div className="plan-grid">
+
+<aside className="plan-sidebar">
+  <PlanSidebar steps={[
+    { id: "overview",      title: "Summary" },
+    { id: "step-1",        title: "1. Motivation" },
+    { id: "step-2",        title: "2. Proposal" },
+    { id: "step-3",        title: "3. Alternatives" },
+    { id: "step-4",        title: "4. Timeline" },
+    { id: "step-5",        title: "5. Open questions" },
+    { id: "decisions",     title: "Decisions" },
+  ]} />
+</aside>
+
+<main className="plan-main">
+
+<section id="overview" className="plan-card">
+  <h2>Summary</h2>
+  <p>This RFC proposes migrating our legacy jQuery dashboard to React 18 + TypeScript over 8 weeks, using the Strangler Fig pattern to ship incrementally without downtime.</p>
+
+  <Row>
+    <Card><Stat value="React 18" label="Target framework" /></Card>
+    <Card><Stat value="8 wk" label="Timeline" /></Card>
+    <Card><Stat value="$0" label="Downtime" /></Card>
+    <Card><Stat value="47" label="Components" /></Card>
+  </Row>
+
+  <Callout emoji="📋" tone="info">
+    This is an <strong>RFC</strong> (Request for Comments), not an implementation plan. The goal is to align stakeholders before code is written. The companion migration-plan.mdx is the executable version.
+  </Callout>
+</section>
+
+<PlanStep n={1} title="Motivation">
+  <h4>Why now</h4>
+  <p>The current jQuery dashboard is hard to maintain, slow to extend, and blocking new hires from being productive. We have 3 backend engineers who can't ship UI changes without help from the 2 frontend specialists.</p>
+
+  <h4>Pain points</h4>
+  <ul>
+    <li>Onboarding new frontend hires takes 4-6 weeks (vs. 1-2 for React)</li>
+    <li>Average time-to-fix for visual bugs: 3.2 days</li>
+    <li>Bundle size: 412 KB jQuery + plugins (vs. 87 KB React for equivalent scope)</li>
+    <li>Type system is JSDoc comments; 23% of bugs last quarter were type errors caught at runtime</li>
+  </ul>
+
+  <BarChart
+    title="Lines added per quarter (jQuery vs. desired trajectory)"
+    data={[
+      { label: "Q1 '24", value: 1840, color: "#ef4444" },
+      { label: "Q2 '24", value: 1620, color: "#ef4444" },
+      { label: "Q3 '24", value: 1410, color: "#ef4444" },
+      { label: "Q4 '24", value: 980,  color: "#f59e0b" },
+      { label: "Q1 '25", value: 420,  color: "#22c55e" },
+    ]}
+    options={{ showValues: true }}
+  />
+</PlanStep>
+
+<PlanStep n={2} title="Detailed proposal">
+  <h4>What we're proposing</h4>
+  <p>Adopt React 18 + TypeScript + Vite. Build a thin Strangler Fig router that owns the top-level URL space and delegates to either a React page or a sandboxed iframe hosting the existing jQuery page. Migrate components in 4 risk-ordered waves. Decommission the jQuery bundle after Wave 4.</p>
+
+  <h4>Architecture</h4>
+  <Card title="High-level">
+    <div style={{ fontFamily: "var(--font-mono)", fontSize: 12, lineHeight: 1.7 }}>
+      <div>┌────────────────────────────────────────────┐</div>
+      <div>│  React 18 Router (new, owns URL space)      │</div>
+      <div>├────────────────┬───────────────────────────┤</div>
+      <div>│  React page    │  iframe → jQuery page       │</div>
+      <div>│  (TypeScript)  │  (legacy, sandboxed)        │</div>
+      <div>├────────────────┴───────────────────────────┤</div>
+      <div>│  postMessage bridge (auth, navigation)     │</div>
+      <div>└────────────────────────────────────────────┘</div>
+    </div>
+  </Card>
+
+  <h4>Acceptance criteria</h4>
+  <ul>
+    <li><input type="checkbox" data-progress /> New features ship in React from day 1</li>
+    <li><input type="checkbox" data-progress /> Existing jQuery pages work unchanged during migration</li>
+    <li><input type="checkbox" data-progress /> Auth + nav work across the iframe bridge</li>
+    <li><input type="checkbox" data-progress /> Bundle size stays under 200 KB gzipped (current React shell: 87 KB)</li>
+    <li><input type="checkbox" data-progress /> TS strict mode catches ≥80% of bugs at compile time</li>
+  </ul>
+</PlanStep>
+
+<PlanStep n={3} title="Alternatives considered">
+  <h4>We compared three paths. Here is the honest scoring:</h4>
+
+  <DataTable
+    title="Alternatives"
+    columns={[
+      { key: "name", label: "Option", sortable: true },
+      { key: "risk", label: "Risk", sortable: true },
+      { key: "time", label: "Time", sortable: true },
+      { key: "cost", label: "Cost", sortable: true },
+      { key: "hiring", label: "Hiring impact", sortable: true },
+      { key: "score", label: "Score", sortable: true, format: function (v) { return v + "/10"; } },
+      { key: "verdict", label: "Verdict" },
+    ]}
+    rows={[
+      { name: "A. Strangler fig (this proposal)",  risk: "Medium", time: "8 wk",  cost: "Low",    hiring: "Easy",   score: 9,  verdict: "✅ Recommended" },
+      { name: "B. Big-bang rewrite",              risk: "Very High", time: "12 wk", cost: "Medium", hiring: "Hard",   score: 3,  verdict: "❌ Rejected" },
+      { name: "C. Micro-frontends (Module Fed)",   risk: "High", time: "10 wk",  cost: "High",   hiring: "Medium", score: 5,  verdict: "⚠️ Future option" },
+      { name: "D. Keep jQuery, modernize plugins", risk: "Low",  time: "4 wk",   cost: "Low",    hiring: "Hard",   score: 4,  verdict: "⚠️ Short-term patch" },
+      { name: "E. Adopt Vue/Svelte instead",       risk: "Medium", time: "10 wk",  cost: "Low",    hiring: "Medium", score: 6,  verdict: "⚠️ React more conservative" },
+    ]}
+    options={{ pageSize: 10, defaultSort: "score", defaultSortDesc: true }}
+  />
+</PlanStep>
+
+<PlanStep n={4} title="Timeline (8 weeks)">
+  <GanttChart
+    title="RFC review + migration waves"
+    lanes={[
+      { id: "review", label: "RFC review",      color: "#22c55e" },
+      { id: "wave-1", label: "Wave 1 — Foundations", color: "#3b82f6" },
+      { id: "wave-2", label: "Wave 2 — Forms",     color: "#f59e0b" },
+      { id: "wave-3", label: "Wave 3 — Data",      color: "#a855f7" },
+      { id: "wave-4", label: "Wave 4 — Cleanup",   color: "#ef4444" },
+    ]}
+    tasks={[
+      { id: "rfc",       name: "RFC review",              lane: "review", start: 1, end: 3 },
+      { id: "approval",  name: "Approval gate",           lane: "review", start: 4, end: 4 },
+      { id: "shell",     name: "Router shell",            lane: "wave-1", start: 5, end: 9 },
+      { id: "toast",     name: "Toast + Modal (Wave 1)",  lane: "wave-1", start: 7, end: 11, deps: ["shell"] },
+      { id: "forms1",    name: "Forms: input/select",     lane: "wave-2", start: 12, end: 18, deps: ["toast"] },
+      { id: "forms2",    name: "Forms: validator",        lane: "wave-2", start: 16, end: 22, deps: ["forms1"] },
+      { id: "grid",      name: "DataGrid",                lane: "wave-3", start: 19, end: 32, deps: ["forms2"] },
+      { id: "date",      name: "DatePicker",              lane: "wave-3", start: 24, end: 30, deps: ["forms1"] },
+      { id: "charts",    name: "Chart wrappers",          lane: "wave-3", start: 26, end: 36, deps: ["grid"] },
+      { id: "decom",     name: "Decommission jQuery",     lane: "wave-4", start: 37, end: 40, deps: ["charts"] },
+    ]}
+    options={{ totalDays: 40, today: 4, startLabel: "Wk 1", endLabel: "Wk 10" }}
+  />
+</PlanStep>
+
+<PlanStep n={5} title="Open questions">
+  <Callout emoji="❓" tone="warn">
+    These questions need answers before the RFC can be approved. Each maps to a Decision at the bottom of this plan.
+  </Callout>
+
+  <Timeline
+    title="Discussion timeline"
+    events={[
+      { date: "Mon Jun 23", title: "RFC posted",                  body: "Async review window opens", tone: "info" },
+      { date: "Wed Jun 25", title: "Office hours",                body: "Drop-in with the frontend team to debate alternatives", tone: "info" },
+      { date: "Fri Jun 27", title: "Comments due",                body: "All comments in by EOD", tone: "warn" },
+      { date: "Mon Jun 30", title: "Decision meeting",            body: "Tech leads vote on alternatives", tone: "success" },
+      { date: "Tue Jul  1", title: "RFC approved or rejected",   body: "Comms goes out to the company", tone: "success" },
+    ]}
+  />
+</PlanStep>
+
+<section id="decisions" className="plan-card">
+  <h2>Decisions needed for RFC approval</h2>
+  <DecisionForm id="rfc-d">
+    <Decision
+      id="choose-approach"
+      question="Which migration approach do we adopt?"
+      default="strangler"
+      options={[
+        { value: "strangler",  label: "A. Strangler fig",  help: "Recommended · 8 wk · low risk" },
+        { value: "bigbang",    label: "B. Big-bang",       help: "12 wk · very high risk" },
+        { value: "microfrontend", label: "C. Micro-frontends", help: "Future option" },
+        { value: "reject",     label: "D. Reject (keep jQuery)", help: "4 wk patch, hard to hire" },
+      ]}
+    />
+    <Decision
+      id="target-stack"
+      question="Which UI framework?"
+      default="react"
+      options={[
+        { value: "react", label: "React 18", help: "Largest hiring pool" },
+        { value: "vue",   label: "Vue 3",    help: "Loved by current team" },
+        { value: "svelte",label: "Svelte 5", help: "Smallest bundles" },
+      ]}
+    />
+  </DecisionForm>
+  <CopyDecisions target="#rfc-d" />
+</section>
+
+</main>
+</div>

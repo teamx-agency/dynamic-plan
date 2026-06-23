@@ -1,0 +1,231 @@
+---
+title: "Migration plan: jQuery → React 18"
+slug: "migration-jquery-to-react"
+generatedAt: "2026-06-23T00:00:00Z"
+goal: "Migrate the legacy jQuery dashboard (3,200 lines, 47 components) to React 18 + TypeScript over 8 weeks with zero downtime"
+status: draft
+stack: ["React 18", "TypeScript", "Vite", "jQuery 3.7"]
+---
+
+import {
+  PlanHeader, PlanSidebar, PlanStep,
+  Screen, ScreenFrame, TopNav, SideNav, Layout, Breadcrumb, Tabs,
+  Button, Field, Input, Select, Checkbox, Radio, Toggle,
+  Card, Modal, Toast, ToastStack, AlertBanner, Table, Avatar, Badge, Stat,
+  Row, Col, Grid, Divider, TextDivider, ViewModeToggle,
+  BarChart, DataTable, Timeline, KanbanBoard, GanttChart,
+  Callout, DecisionForm, Decision, CopyDecisions
+} from "./components.js";
+
+<PlanHeader />
+<ViewModeToggle />
+
+<div className="plan-grid">
+
+<aside className="plan-sidebar">
+  <PlanSidebar steps={[
+    { id: "overview", title: "Overview" },
+    { id: "step-1", title: "1. Audit" },
+    { id: "step-2", title: "2. Strangler fig" },
+    { id: "step-3", title: "3. Migration waves" },
+    { id: "step-4", title: "4. Risk register" },
+    { id: "decisions", title: "Decisions" },
+  ]} />
+</aside>
+
+<main className="plan-main">
+
+<section id="overview" className="plan-card">
+  <h2>Overview</h2>
+  <p>Migrate the legacy jQuery dashboard to React 18 + TypeScript. The plan uses the <strong>Strangler Fig pattern</strong>: new features ship in React, old jQuery pages get rewritten one wave at a time behind a feature-flagged router.</p>
+
+  <Callout emoji="🛡️" tone="warn">
+    This is a <strong>migration plan</strong>, not a feature plan. The template emphasizes risks, timelines, and rollback paths over wireframes. Wireframes are mostly for the new top-level routing shell.
+  </Callout>
+
+  <Row>
+    <Card><Stat value="3,200" label="Lines of jQuery" /></Card>
+    <Card><Stat value="47" label="Components" /></Card>
+    <Card><Stat value="8 wk" label="Target duration" /></Card>
+    <Card><Stat value="0" label="Downtime tolerance" /></Card>
+  </Row>
+</section>
+
+<PlanStep n={1} title="Audit & inventory">
+  <h4>Goal</h4>
+  <p>Catalog every jQuery component, jQuery plugin dependency, and global event handler. We can't migrate what we don't know.</p>
+
+  <h4>Acceptance criteria</h4>
+  <ul>
+    <li><input type="checkbox" data-progress /> All 47 components have an owner + complexity rating (S/M/L)</li>
+    <li><input type="checkbox" data-progress /> jQuery plugins listed with version + license</li>
+    <li><input type="checkbox" data-progress /> Global event handlers (delegated clicks, doc.ready) inventoried</li>
+    <li><input type="checkbox" data-progress /> Test coverage baseline measured per component</li>
+  </ul>
+
+  <h4>Audit dashboard</h4>
+  <DataTable
+    title="Component complexity & ownership"
+    columns={[
+      { key: "name", label: "Component", sortable: true },
+      { key: "lines", label: "Lines", sortable: true },
+      { key: "complexity", label: "Complexity", sortable: true },
+      { key: "owner", label: "Owner", sortable: true },
+      { key: "tests", label: "Tests", sortable: true, format: (v) => v + "%" },
+      { key: "status", label: "Status" },
+    ]}
+    rows={[
+      { name: "DataGrid",        lines: 412, complexity: "L", owner: "Alex",   tests: 78, status: "queued" },
+      { name: "Modal",           lines: 187, complexity: "M", owner: "Sam",    tests: 92, status: "queued" },
+      { name: "DatePicker",      lines: 543, complexity: "L", owner: "Priya",  tests: 65, status: "queued" },
+      { name: "Toast",           lines: 89,  complexity: "S", owner: "Sam",    tests: 95, status: "queued" },
+      { name: "FormValidator",   lines: 234, complexity: "M", owner: "Chris",  tests: 71, status: "queued" },
+      { name: "ChartWrapper",    lines: 678, complexity: "L", owner: "Alex",   tests: 42, status: "queued" },
+    ]}
+    options={{ pageSize: 8, defaultSort: "lines" }}
+  />
+</PlanStep>
+
+<PlanStep n={2} title="Strangler fig routing shell">
+  <h4>Goal</h4>
+  <p>Stand up a React router that owns the top-level URL space. Each route delegates to either a React page or a rendered-in-iframe jQuery page. The user never sees a hard cut-over.</p>
+
+  <h4>Acceptance criteria</h4>
+  <ul>
+    <li><input type="checkbox" data-progress /> Top-level routes registered in React Router 6</li>
+    <li><input type="checkbox" data-progress /> Feature flag per route: <code>jquery</code> vs <code>react</code></li>
+    <li><input type="checkbox" data-progress /> jQuery pages mount inside a sandboxed iframe with message bridge</li>
+    <li><input type="checkbox" data-progress /> Cross-frame auth token forwarding works</li>
+    <li><input type="checkbox" data-progress /> Bundle-splitting: jQuery chunks loaded only when needed</li>
+  </ul>
+
+  <h4>Wireframe — top-level router shell</h4>
+  <ScreenFrame title="Router shell (new)" desc="React Router owns URL space; each route can be jQuery or React.">
+    <Screen title="App router" url="app.example/">
+      <Layout
+        brand="TeamX"
+        sections={[
+          { label: "Workspace", items: ["Dashboard", "Projects", "Reports"] },
+          { label: "Admin", items: ["Users", "Billing", "Audit"] },
+        ]}
+      >
+        <Breadcrumb items={["Workspace", "Dashboard"]} />
+        <div style={{ marginTop: 16 }}>
+          <Badge variant="primary">react</Badge> <span style={{ marginLeft: 8 }}>Dashboard (React)</span>
+        </div>
+        <Divider />
+        <div>
+          <Badge>jquery</Badge> <span style={{ marginLeft: 8 }}>Reports (jQuery, legacy)</span>
+        </div>
+        <Divider />
+        <Callout emoji="↕" tone="info">
+          The router reads <code>?ui=react|jq</code> per route and renders accordingly. Users can opt-in to the new UI per page.
+        </Callout>
+      </Layout>
+    </Screen>
+  </ScreenFrame>
+</PlanStep>
+
+<PlanStep n={3} title="Migration waves (8 weeks)">
+  <h4>Goal</h4>
+  <p>Sequence the 47 components into 4 migration waves by risk, dependency, and user impact.</p>
+
+  <h4>Wave plan (Gantt)</h4>
+  <GanttChart
+    title="Migration timeline"
+    lanes={[
+      { id: "wave-1", label: "Wave 1 — Foundations", color: "#22c55e" },
+      { id: "wave-2", label: "Wave 2 — Forms",     color: "#3b82f6" },
+      { id: "wave-3", label: "Wave 3 — Data",      color: "#f59e0b" },
+      { id: "wave-4", label: "Wave 4 — Cleanup",   color: "#a855f7" },
+    ]}
+    tasks={[
+      { id: "shell",   name: "Router shell + iframe bridge", lane: "wave-1", start: 1, end: 5 },
+      { id: "toast",   name: "Toast + Modal (small, leaf)",    lane: "wave-1", start: 3, end: 7, deps: ["shell"] },
+      { id: "forms1",  name: "Forms: input, select, field",   lane: "wave-2", start: 8, end: 14, deps: ["toast"] },
+      { id: "forms2",  name: "Forms: validator, submit",       lane: "wave-2", start: 12, end: 18, deps: ["forms1"] },
+      { id: "grid",    name: "DataGrid (largest, M-L)",       lane: "wave-3", start: 15, end: 28, deps: ["forms2"] },
+      { id: "date",    name: "DatePicker",                     lane: "wave-3", start: 20, end: 26, deps: ["forms1"] },
+      { id: "charts",  name: "Chart wrapper migration",        lane: "wave-3", start: 22, end: 32, deps: ["grid"] },
+      { id: "decom",   name: "Decommission jQuery bundle",     lane: "wave-4", start: 33, end: 40, deps: ["charts"] },
+    ]}
+    options={{ totalDays: 40, today: 18, startLabel: "Wk 1", endLabel: "Wk 8" }}
+  />
+
+  <h4>Migration Kanban (live status)</h4>
+  <KanbanBoard
+    title="Component status (today)"
+    columns={[
+      { id: "todo",   title: "To migrate", cards: [
+        { id: "c-grid",   title: "DataGrid",     body: "412 LoC · L · 78% tests",      tone: "warn" },
+        { id: "c-date",   title: "DatePicker",   body: "543 LoC · L · 65% tests",      tone: "warn" },
+        { id: "c-chart",  title: "ChartWrapper", body: "678 LoC · L · 42% tests",      tone: "danger" },
+      ]},
+      { id: "doing",  title: "In progress", cards: [
+        { id: "c-forms",  title: "Forms bundle",  body: "Wave 2 · Sam",                tone: "info" },
+      ]},
+      { id: "review", title: "Code review",   cards: [
+        { id: "c-toast",  title: "Toast + Modal", body: "Wave 1 · ready to merge",    tone: "success" },
+      ]},
+      { id: "done",   title: "Reactified",    cards: [
+        { id: "c-shell",  title: "Router shell",  body: "Shipped Wk 1",              tone: "success" },
+      ]},
+    ]}
+  />
+</PlanStep>
+
+<PlanStep n={4} title="Risk register">
+  <h4>Goal</h4>
+  <p>Track the 6 biggest risks. Each has an owner, a likelihood, and a mitigation.</p>
+
+  <DataTable
+    title="Risks"
+    columns={[
+      { key: "id", label: "#", sortable: false },
+      { key: "risk", label: "Risk", sortable: true },
+      { key: "likelihood", label: "Likelihood", sortable: true },
+      { key: "impact", label: "Impact", sortable: true },
+      { key: "owner", label: "Owner", sortable: true },
+      { key: "mitigation", label: "Mitigation" },
+    ]}
+    rows={[
+      { id: "R1", risk: "jQuery plugins with no React equivalent",         likelihood: "High",   impact: "High",   owner: "Alex",   mitigation: "Vendor scoping in Wk 1; budget rewrite as last resort" },
+      { id: "R2", risk: "Cross-frame auth token leakage",                  likelihood: "Medium", impact: "Critical", owner: "Priya", mitigation: "postMessage validation, short-lived tokens" },
+      { id: "R3", risk: "Regression in shared state during iframe bridge",  likelihood: "Medium", impact: "High",   owner: "Sam",    mitigation: "All shared state via Redux, not globals" },
+      { id: "R4", risk: "DataGrid perf regression on 10k+ rows",           likelihood: "Medium", impact: "Medium", owner: "Chris",  mitigation: "Virtualization first, ship to 10% canary" },
+      { id: "R5", risk: "TypeScript ramp-up delays wave 2",                likelihood: "Medium", impact: "Medium", owner: "Sam",    mitigation: "TS-by-jsdoc first; strict mode from wave 2 onward" },
+      { id: "R6", risk: "Bundle size regression from React + tooling",    likelihood: "Low",    impact: "Medium", owner: "Alex",   mitigation: "Bundle budget alert in CI at 200KB gzipped" },
+    ]}
+    options={{ pageSize: 10, defaultSort: "impact" }}
+  />
+</PlanStep>
+
+<section id="decisions" className="plan-card">
+  <h2>Decisions needed before migration starts</h2>
+  <DecisionForm id="mig-d">
+    <Decision
+      id="routing-strategy"
+      question="How do we coexist React and jQuery during the migration?"
+      default="strangler"
+      options={[
+        { value: "strangler",  label: "Strangler fig (iframe)",        help: "Each route serves jQuery or React based on a flag" },
+        { value: "rewrite",    label: "Big-bang rewrite",              help: "Cut over the whole app once everything is ready" },
+        { value: "microfrontend", label: "Micro-frontends (Module Federation)", help: "Independent deploys per page" },
+      ]}
+    />
+    <Decision
+      id="ts-strictness"
+      question="TypeScript strictness from day 1?"
+      default="strict-after-wave-1"
+      options={[
+        { value: "strict-from-day-1",  label: "Strict from day 1",      help: "Catch issues early, slower start" },
+        { value: "strict-after-wave-1", label: "Strict after Wave 1",  help: "Ramp up first, then tighten (recommended)" },
+        { value: "loose",              label: "Loose (allow JS)",       help: "Smoothest migration, hardest to tighten later" },
+      ]}
+    />
+  </DecisionForm>
+  <CopyDecisions target="#mig-d" />
+</section>
+
+</main>
+</div>
