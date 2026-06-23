@@ -35,14 +35,17 @@
   },
   "files": [
     "bin/",
-    "scripts/",
+    "scripts/compile-mdx.mjs",
+    "scripts/serve-mdx.sh",
+    "scripts/changelog.mjs",
+    "scripts/release.mjs",
+    "scripts/package.json",
+    "scripts/package-lock.json",
     "assets/",
     "references/",
     "SKILL.md",
     "LICENSE",
-    "README.md",
-    "install.sh",
-    "uninstall.sh"
+    "README.md"
   ],
   "scripts": {
     "compile": "node scripts/compile-mdx.mjs",

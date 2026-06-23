@@ -1,6 +1,10 @@
 # =============================================
 # Files NOT shipped to npm
 # =============================================
+# This file overrides package.json's "files" array for npm publish.
+# Anything NOT explicitly listed in package.json "files" is excluded.
+# This .npmignore is a safety net for paths that might accidentally
+# match (e.g. editor backups, OS files, test outputs).
 
 # Source control
 .git/
@@ -10,34 +14,28 @@
 # CI / release tooling
 .github/
 docs/
-scripts/test-compile.mjs
-scripts/install.sh
-scripts/uninstall.sh
-install.sh
-uninstall.sh
 CONTRIBUTING.md
 CHANGELOG.md
 
-# Tests
-__tests__/
-test/
-*.test.js
-*.test.mjs
-*.spec.js
-coverage/
-.nyc_output/
+# Top-level dev scripts (run from a clone, not from the npm tarball)
+install.sh
+uninstall.sh
+release.sh
 
-# Local development
-.dynamic-plan/
-.cache/
-.tmp/
-tmp/
+# Test scripts (kept in repo for CI but not for npm users)
+scripts/test-compile.mjs
+scripts/first-publish.sh
+
+# All node_modules in any subdirectory (npm bug: scripts/node_modules/ would
+# otherwise leak via the .gitignore default that only excludes top-level)
+**/node_modules/
 
 # Build artifacts (the compiler outputs these, don't ship them)
 *.html
 *.components.mjs
+*.tar.gz
 
-# Editor / OS
+# OS / editor
 .DS_Store
 .idea/
 .vscode/
@@ -50,17 +48,28 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# Dependency directories
-node_modules/
-.pnp/
-.pnp.js
+# Local development
+.dynamic-plan/
+.cache/
+.tmp/
+tmp/
+
+# Tests
+__tests__/
+test/
+*.test.js
+*.test.mjs
+*.spec.js
+coverage/
+.nyc_output/
 
 # Environment
 .env
 .env.local
 .env.*.local
 
-# Lock files (npm-shrinkwrap.json IS shipped, but we use package-lock.json only for dev)
+# Top-level package-lock.json (not published).
+# scripts/package-lock.json IS published so installs are reproducible.
 package-lock.json
 yarn.lock
 pnpm-lock.yaml
