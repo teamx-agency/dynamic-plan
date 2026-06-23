@@ -314,7 +314,7 @@ export function PlanStep(props) {
       h("span", { className: "plan-step-num" }, displayPos),
       h("h2", { className: "plan-step-title" }, title)
     ),
-    h("div", { className: "plan-step-body" }, children)
+    h("div", { className: "plan-step-body" }, children, h(StepNotes, { n: n, stepKey: stepKey }))
   );
 }
 
@@ -572,6 +572,19 @@ export function CopyDecisions(props) {
         // Build a richer JSON payload than the @dynamic-plan copy block.
         var stepOrder = [];
         try { stepOrder = JSON.parse(localStorage.getItem(lsKey("step-order", planSlug)) || "[]"); } catch (e) {}
+        // Collect per-step notes from <StepNotes> localStorage keys.
+        var stepNotes = {};
+        try {
+          for (var i = 0; i < localStorage.length; i++) {
+            var k = localStorage.key(i);
+            if (k && k.indexOf("dplan-step-note-step-") !== -1) {
+              var stepId = k.substring(k.lastIndexOf("-step-") + 1).replace(/^step-/, "");
+              // Actually the key format is dplan-step-note-step-N-<slug>; extract N.
+              var m = k.match(/step-note-(step-\d+)/);
+              if (m) stepNotes[m[1]] = localStorage.getItem(k);
+            }
+          }
+        } catch (e) {}
         var payload = {
           plan: {
             slug: planSlug,
@@ -580,6 +593,7 @@ export function CopyDecisions(props) {
           },
           generatedAt: new Date().toISOString(),
           stepOrder: stepOrder,
+          stepNotes: stepNotes,
           decisions: result.data,
           notes: result.notes
         };
@@ -646,6 +660,101 @@ export function CopyDecisions(props) {
 // ---------- helpers ----------
 function wfClass(...names) {
   return names.filter(Boolean).join(" ");
+}
+
+// ---------- StepNotes (per-step persistent notes) ----------
+// Auto-injected at the end of every <PlanStep>'s body if the agent
+// didn't put one there explicitly. Persists per (slug, stepKey) in
+// localStorage; included in the decisions JSON export.
+export function StepNotes(props) {
+  var stepKey = props.stepKey || (props.n ? "step-" + props.n : null);
+  if (!stepKey) return null;
+  var planSlug = getSlug();
+  var noteKey = lsKey("step-note-" + stepKey, planSlug);
+
+  var _useState = useState(function () {
+    try { return localStorage.getItem(noteKey) || ""; } catch (e) { return ""; }
+  }), note = _useState[0], setNote = _useState[1];
+  var _useState2 = useState(function () {
+    return !!(localStorage.getItem(noteKey));
+  }), hasContent = _useState2[0], setHasContent = _useState2[1];
+  var _useState3 = useState(true), expanded = _useState3[0], setExpanded = _useState3[1];
+
+  function update(e) {
+    var v = e.target.value;
+    setNote(v);
+    try {
+      if (v.trim()) {
+        localStorage.setItem(noteKey, v);
+        setHasContent(true);
+      } else {
+        localStorage.removeItem(noteKey);
+        setHasContent(false);
+      }
+    } catch (e) {}
+  }
+
+  // Simple Markdown → HTML (bold, italic, code, lists, links). Keeps the
+  // bundle small — no marked.js. Escape HTML first.
+  function renderMarkdown(text) {
+    if (!text) return null;
+    var escaped = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    // Split by lines for lists
+    var lines = escaped.split("\n");
+    var out = [];
+    var inList = false;
+    for (var i = 0; i < lines.length; i++) {
+      var line = lines[i];
+      var listMatch = line.match(/^(\s*)([-*])\s+(.*)$/);
+      if (listMatch) {
+        if (!inList) { out.push("<ul>"); inList = true; }
+        out.push("<li>" + inlineFmt(listMatch[3]) + "</li>");
+      } else {
+        if (inList) { out.push("</ul>"); inList = false; }
+        if (line.trim() === "") { out.push("<br/>"); continue; }
+        if (/^### /.test(line)) out.push("<h4>" + inlineFmt(line.slice(4)) + "</h4>");
+        else if (/^## /.test(line)) out.push("<h3>" + inlineFmt(line.slice(3)) + "</h3>");
+        else if (/^# /.test(line)) out.push("<h2>" + inlineFmt(line.slice(2)) + "</h2>");
+        else out.push("<p>" + inlineFmt(line) + "</p>");
+      }
+    }
+    if (inList) out.push("</ul>");
+    return out.join("");
+  }
+  function inlineFmt(s) {
+    return s
+      .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+      .replace(/\*([^*]+)\*/g, "<em>$1</em>")
+      .replace(/`([^`]+)`/g, "<code>$1</code>")
+      .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+  }
+
+  var display = expanded ? "block" : "none";
+  return h("div", { className: "step-notes" + (hasContent ? " has-content" : ""), "data-step-key": stepKey },
+    h("button", {
+      className: "step-notes-toggle",
+      onClick: function () { setExpanded(!expanded); },
+      "aria-expanded": expanded
+    },
+      h("span", { className: "step-notes-chevron" }, expanded ? "▾" : "▸"),
+      h("span", null, hasContent ? "📝 Your notes" : "📝 Add notes"),
+      hasContent && !expanded ? h("span", { className: "step-notes-preview" }, note.slice(0, 60) + (note.length > 60 ? "…" : "")) : null,
+      h("span", { className: "step-notes-counter" }, note.length > 0 ? note.length + " chars" : "")
+    ),
+    h("div", { className: "step-notes-body", style: { display: display } },
+      h("textarea", {
+        className: "step-notes-input",
+        value: note,
+        onChange: update,
+        placeholder: "Capture blockers, follow-ups, design questions for this step.\n\nMarkdown supported: **bold**, *italic*, `code`, [links](url), and - lists.\n\nSaved automatically. Persists across page reloads.",
+        rows: 5
+      }),
+      hasContent && h("div", { className: "step-notes-preview-card" },
+        h("div", { className: "step-notes-preview-label" }, "Preview"),
+        h("div", { className: "step-notes-preview-body", dangerouslySetInnerHTML: { __html: renderMarkdown(note) } })
+      )
+    )
+  );
 }
 
 // ---------- Screen (frame wrapper) ----------

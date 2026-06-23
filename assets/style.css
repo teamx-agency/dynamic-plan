@@ -723,3 +723,107 @@ textarea.decision-note:focus { outline: none; border-color: var(--accent); box-s
   margin-right: auto;
 }
 .copy-bar .export-link:hover { color: var(--accent); text-decoration: underline; }
+
+/* ====================================================================
+   PER-STEP NOTES (<StepNotes>)
+   ==================================================================== */
+.step-notes {
+  margin-top: 24px;
+  border-top: 1px dashed var(--border);
+  padding-top: 16px;
+}
+.step-notes.has-content { border-top-color: var(--accent); }
+.step-notes-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  background: transparent;
+  border: none;
+  padding: 6px 10px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  color: var(--muted);
+  font-family: inherit;
+  font-size: 13px;
+  text-align: left;
+  font-weight: 500;
+}
+.step-notes-toggle:hover { background: var(--bg-subtle); color: var(--fg); }
+.step-notes.has-content .step-notes-toggle { color: var(--accent); }
+.step-notes-chevron {
+  display: inline-block;
+  width: 12px;
+  font-size: 10px;
+  opacity: 0.7;
+}
+.step-notes-preview {
+  color: var(--muted);
+  font-style: italic;
+  font-weight: 400;
+  font-size: 12px;
+  max-width: 50%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.step-notes-counter {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--muted);
+  opacity: 0.7;
+}
+.step-notes-body {
+  margin-top: 8px;
+  padding: 0 10px;
+}
+.step-notes-input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-elev);
+  color: var(--fg);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.5;
+  resize: vertical;
+  min-height: 100px;
+}
+.step-notes-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-soft);
+}
+.step-notes-preview-card {
+  margin-top: 8px;
+  padding: 10px 12px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.step-notes-preview-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  margin-bottom: 6px;
+  font-weight: 600;
+}
+.step-notes-preview-body { font-size: 13px; line-height: 1.5; color: var(--fg); }
+.step-notes-preview-body p { margin: 0 0 6px; }
+.step-notes-preview-body p:last-child { margin-bottom: 0; }
+.step-notes-preview-body h2, .step-notes-preview-body h3, .step-notes-preview-body h4 {
+  margin: 8px 0 4px;
+  font-size: 14px;
+}
+.step-notes-preview-body ul { margin: 4px 0 6px; padding-left: 20px; }
+.step-notes-preview-body li { margin: 2px 0; }
+.step-notes-preview-body code {
+  background: var(--bg-elev);
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: 12px;
+  border: 1px solid var(--border);
+}
+.step-notes-preview-body a { color: var(--accent); }
