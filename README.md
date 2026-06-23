@@ -360,7 +360,7 @@ Required secrets (one-time setup in repo settings):
 - [x] Drag-to-reorder steps (the `⋮⋮` handles are functional now) — added in 1.2.0
 - [x] Export decisions as `.json` file (not just clipboard) — added in 1.2.0
 - [x] Plugin API for adding your own wireframe components — added in 1.2.0 (see `docs/plugin-api.md`)
-- [ ] Persistent per-step notes (in addition to the global form) — next
+- [x] Persistent per-step notes with markdown preview — added in 1.3.0
 
 ## License
 
