@@ -339,12 +339,12 @@ Required secrets (one-time setup in repo settings):
 
 ## Roadmap
 
-- [ ] Toggle "wireframe ↔ high-fidelity" view (real colors on demand)
-- [ ] Mobile-first preset for the screen frame
-- [ ] Export decisions as `.json` file (not just clipboard)
-- [ ] Drag-to-reorder steps (the `⋮⋮` handles are visual only today)
-- [ ] Persistent per-step notes (in addition to the global form)
-- [ ] Plugin API for adding your own wireframe components
+- [x] Toggle "wireframe ↔ high-fidelity" view (real colors on demand) — added in 1.2.0
+- [x] Mobile-first preset for the `<Screen>` frame — added in 1.2.0 (`device="mobile"`)
+- [x] Drag-to-reorder steps (the `⋮⋮` handles are functional now) — added in 1.2.0
+- [x] Export decisions as `.json` file (not just clipboard) — added in 1.2.0
+- [x] Plugin API for adding your own wireframe components — added in 1.2.0 (see `docs/plugin-api.md`)
+- [ ] Persistent per-step notes (in addition to the global form) — next
 
 ## License
 

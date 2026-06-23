@@ -63,6 +63,9 @@ stack: [<detected tech stack>]
 ### 2. Cover + meta
 
 - `<PlanHeader>` JSX component: goal, generatedAt, stack chips, status badge.
+- `<ViewModeToggle>` — top-right segmented control: 🎨 Wireframe (gray-box)
+  vs ✨ Hi-Fi (real colors). Persisted per plan in `localStorage`. Affects
+  `--wf-mode` CSS variable; the same wireframe renders differently in each mode.
 
 ### 3. Table of Contents sidebar
 
