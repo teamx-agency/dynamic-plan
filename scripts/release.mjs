@@ -28,9 +28,13 @@ const reason = args[1] || `chore(release): publish v${level}`;
 
 function run(cmd, opts = {}) {
   try {
-    return execSync(cmd, { cwd: ROOT, encoding: "utf8", ...opts }).trim();
+    const out = execSync(cmd, { cwd: ROOT, encoding: "utf8", ...opts });
+    // When stdio is 'inherit', execSync returns null (output went straight to parent).
+    // When stdio is anything else, it returns the string output.
+    if (out == null) return "";
+    return String(out).trim();
   } catch (e) {
-    if (opts.allowFail) return null;
+    if (opts.allowFail) return "";
     throw e;
   }
 }
@@ -98,7 +102,6 @@ if (treeDirty && treeDirty.length > 0) {
 } else {
   console.log("  (no changes to commit — already on the right version?)");
 }
-
 // 4. Push
 try {
   run(`git push origin HEAD --follow-tags`, { stdio: "inherit" });

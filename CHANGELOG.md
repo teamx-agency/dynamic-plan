@@ -5,6 +5,7 @@ All notable changes to this project are documented here. The format follows
 adheres to [Semantic Versioning](https://semver.org/) and
 [Conventional Commits](https://www.conventionalcommits.org/).
 
+
 ## [Unreleased]
 
 ### Planned
@@ -48,3 +49,8 @@ adheres to [Semantic Versioning](https://semver.org/) and
 
 [Unreleased]: https://github.com/teamx-agency/dynamic-plan/compare/v1.0.0...HEAD
 [1.0.0]: https://github.com/teamx-agency/dynamic-plan/releases/tag/v1.0.0
+## [1.1.0] - Tue Jun 23 09:33:29 2026 -0600
+
+### Added
+
+- initial public release of dynamic-plan skill (3c1cf3d)
