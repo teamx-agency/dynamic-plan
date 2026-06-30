@@ -97,6 +97,29 @@ These are the planning-specific components. They manage state, persistence, and 
 
 These are presentation-only. They render gray-box HTML that looks like a real screen.
 
+### Primitives + custom components (v1.5.0)
+
+A third family sits underneath both: token-backed **primitives** (`<Box>`,
+`<Stack>`, `<Inline>`, `<Text>`, `<Heading>`, `<Spacer>`, `<Skeleton>`,
+`<AspectRatio>`, `<Icon>`) plus the **`defineComponent()`** factory. Authors
+compose new named components from primitives without editing `components.js`.
+
+`defineComponent` writes into a module-level `DEFINED_COMPONENTS` object.
+`resolveComponents()` merges three sources in order — **built-ins →
+`DEFINED_COMPONENTS` → `window.DPLAN_PLUGINS`** (later wins) — so plugins keep
+final override power. Because the registry is a plain module variable, it
+populates at import time with no `window` dependency, which keeps the Node-side
+compile/smoke pass working.
+
+### The token layer
+
+`assets/style.css` opens with a full design-token set: spacing (4-pt), a type
+scale, radii, layered shadows, a z-index ladder, and motion (easing + duration)
+tokens, plus a base + dark `--wf-*` wireframe surface palette. Dark mode and the
+Hi-Fi toggle work by **re-pointing tokens**, not per-rule overrides. See
+[`references/design-tokens.md`](../references/design-tokens.md). A
+`prefers-reduced-motion` guard disables all animation/transition globally.
+
 **Why not just use Mermaid for everything?** Mermaid is a *diagram* tool. Its boxes connected with arrows are abstract — they don't show what a button looks like, what the form fields say, what a modal looks like. Stakeholders reviewing a plan want to see real UI, not boxes.
 
 ## State management

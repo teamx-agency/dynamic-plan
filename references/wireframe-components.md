@@ -75,6 +75,38 @@ import { Screen, ScreenFrame, TopNav, Button, Field, Input } from "./components.
 | `<Divider>` | | Horizontal rule |
 | `<TextDivider>` | `children` | "───── or ─────" |
 
+### New components (v1.5.0)
+
+Built on the primitives + token layer. Interactive ones manage their own state.
+
+| Component | Props | Notes |
+|---|---|---|
+| `<Accordion>` | `items: [{id,title,body,defaultOpen}]`, `allowMultiple`, `title` | Collapsible stacked panels |
+| `<Dropdown>` | `trigger`, `items: [{label,icon,value,danger,divider,disabled}]`, `align`, `onSelect` | Anchored menu, closes on outside click |
+| `<Progress>` | `value` (0–100), `variant` (`linear`\|`circular`), `size`, `tone`, `showLabel`, `label`, `indeterminate` | Linear bar or SVG ring |
+| `<Spinner>` | `size`, `label`, `inline` | CSS spinner (reduced-motion safe) |
+| `<EmptyState>` | `icon`, `title`, `body`, `action` | Centered no-data state; `action` is a node |
+| `<Stepper>` | `steps: [{label,description}]`, `current`, `orientation`, `clickable`, `onStepChange` | done/active/upcoming states |
+| `<Chip>` | `label`, `icon`, `removable`, `onRemove`, `tone`, `selected` | Tag/pill; tones: default·accent·good·warn·bad |
+| `<CodeBlock>` | `code`, `lang`, `filename`, `showLineNumbers`, `copyable`, `highlightLines` | Mono block with copy button |
+| `<Tooltip>` | `label`, `placement` (top·bottom·left·right), children | CSS-only hover/focus reveal |
+| `<Pagination>` | `page`, `totalPages`, `onChange`, `siblingCount`, `showPrevNext` | Numbered pager with ellipses |
+| `<SegmentedControl>` | `options: [{label,value,icon}]`, `value`, `onChange`, `size` | iOS-style segmented tabs |
+| `<Drawer>` | `title`, `side` (right·left·bottom), `open`, `onClose`, `width`, `footer` | Edge sheet; needs a positioned `<Screen>` |
+| `<MetricCard>` | `label`, `value`, `delta`, `trend` (up·down·flat), `sparkline: number[]`, `icon` | KPI card with SVG sparkline |
+| `<ListItem>` | `leading`, `title`, `subtitle`, `trailing`, `active`, `divider` | Row with leading/trailing slots |
+| `<Popover>` | `trigger`, `title`, `align`, `placement`, children | Anchored panel of arbitrary content (Esc/outside-click close) |
+| `<SearchBar>` | `placeholder`, `value`, `onChange`, `onClear`, `suggestions`, `onSelect` | Functional search input + clear + suggestions |
+| `<DescriptionList>` | `items: [{term,description}]`, `layout` (horizontal·stacked), `title` | Term/value pairs |
+| `<ChatBubble>` | `from` (user·other·system), `author`, `avatar`, `time`, children | Message bubble |
+| `<FileDropzone>` | `label`, `hint`, `icon`, `accept`, `files: [{name,size,status}]` | Wireframe upload area + file list |
+| `<ButtonGroup>` | `buttons: [{label,icon,value,active}]` or children, `attached`, `onSelect` | Attached/segmented button row |
+
+> **Don't confuse:**
+> - `<Progress>` (reusable meter) vs `<ProgressBar>` (the plan-level scroll/completion bar).
+> - `<SegmentedControl>` (generic) vs `<ViewModeToggle>` (the wireframe Hi-Fi switch).
+> - `<Inline>` (modern flex row) vs `<Row>` (legacy alias, still works).
+
 ## Style conventions
 
 - **No real data.** Use:

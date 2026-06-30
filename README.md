@@ -246,8 +246,8 @@ See [`assets/examples/`](assets/examples/) for 3 complete reference plans.
 - **MDX 3** — JSX in markdown, compiled to ESM
 - **React 18** — rendered client-side via esm.sh (no bundler)
 - **Mermaid 10** — backend/data-flow diagrams
-- **CSS variables** — Notion-style light/dark theming
-- **30+ wireframe components** — `<Screen>`, `<Button>`, `<Modal>`, `<Table>`, `<Stat>`, etc.
+- **Design tokens** — spacing/type/radii/shadow/motion + light/dark theming, reduced-motion safe
+- **50+ wireframe components + 9 primitives** — `<Screen>`, `<Button>`, `<Modal>`, `<MetricCard>`, `<Stepper>`, `<Popover>`, `<Box>`, `<Stack>`, etc.
 
 See [`docs/architecture.md`](docs/architecture.md) for the full design.
 
@@ -287,7 +287,15 @@ This removes the skill from all supported platforms without touching your other 
 
 `<Screen>`, `<ScreenFrame>`, `<TopNav>`, `<SideNav>`, `<Layout>`, `<Breadcrumb>`, `<Tabs>`, `<Button>`, `<Field>`, `<Input>`, `<Select>`, `<Textarea>`, `<Checkbox>`, `<Radio>`, `<Toggle>`, `<Card>`, `<Modal>`, `<Toast>`, `<ToastStack>`, `<AlertBanner>`, `<Table>`, `<Avatar>`, `<Badge>`, `<Stat>`, `<Divider>`, `<Row>`, `<Col>`, `<Grid>`
 
-Full API: [`references/wireframe-components.md`](references/wireframe-components.md)
+**New in 1.5.0:** `<Accordion>`, `<Dropdown>`, `<Progress>`, `<Spinner>`, `<EmptyState>`, `<Stepper>`, `<Chip>`, `<CodeBlock>`, `<Tooltip>`, `<Pagination>`, `<SegmentedControl>`, `<Drawer>`, `<MetricCard>`, `<ListItem>`, `<Popover>`, `<SearchBar>`, `<DescriptionList>`, `<ChatBubble>`, `<FileDropzone>`, `<ButtonGroup>`
+
+### Primitives + custom components (1.5.0)
+
+Token-backed composition layer: `<Box>`, `<Stack>`, `<Inline>`, `<Text>`, `<Heading>`, `<Spacer>`, `<Skeleton>`, `<AspectRatio>`, `<Icon>` — plus **`defineComponent()`** to build your own reusable components from them.
+
+Full API: [`references/wireframe-components.md`](references/wireframe-components.md) ·
+Primitives & `defineComponent`: [`references/mdx-components.md`](references/mdx-components.md) ·
+Tokens: [`references/design-tokens.md`](references/design-tokens.md)
 
 ## Why .mdx?
 
@@ -361,6 +369,10 @@ Required secrets (one-time setup in repo settings):
 - [x] Export decisions as `.json` file (not just clipboard) — added in 1.2.0
 - [x] Plugin API for adding your own wireframe components — added in 1.2.0 (see `docs/plugin-api.md`)
 - [x] Persistent per-step notes with markdown preview — added in 1.3.0
+- [x] Data-viz components (BarChart, DataTable, Timeline, Kanban, Gantt) — added in 1.4.0
+- [x] Design-token + motion system (themeable, dark-aware, reduced-motion safe) — added in 1.5.0
+- [x] Composition primitives + `defineComponent()` API for custom components — added in 1.5.0
+- [x] 20 new wireframe components (Accordion, Dropdown, Progress, Stepper, MetricCard, Popover, SearchBar, …) — added in 1.5.0
 
 ## License
 

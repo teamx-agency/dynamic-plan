@@ -128,11 +128,98 @@ Notes:
 
 ---
 
+## Layout primitives (composition layer)
+
+A small set of token-backed building blocks. They read the **chrome** tokens
+(`--space-*`, `--text-*`, `--fg`, `--accent`…) so they adapt to the plan theme.
+Use them to compose layouts without writing CSS, and as the body of custom
+components (see `defineComponent` below).
+
+| Primitive | Key props | Purpose |
+|---|---|---|
+| `<Box>` | `p/px/py/pt…`, `m…`, `bg`, `border`, `radius`, `shadow`, `w`, `h`, `as` | The box-model + surface atom |
+| `<Stack>` | `gap`, `align`, `justify`, + Box props | Vertical flex flow |
+| `<Inline>` | `gap`, `align`, `justify`, `wrap`, + Box props | Horizontal flex row (modern `<Row>`) |
+| `<Text>` | `size` (xs…xl), `weight`, `tone`, `truncate`, `mono`, `align`, `as` | Body/inline text on the type scale |
+| `<Heading>` | `level` (1–6), `size`, `weight`, `tone` | Semantic `hN`, visual size decoupled from level |
+| `<Spacer>` | `size`, `axis`, `grow` | Explicit whitespace / flex filler |
+| `<Skeleton>` | `w`, `h`, `radius`, `lines` | Shimmer loading placeholder |
+| `<AspectRatio>` | `ratio` (number or `"16:9"`), `bg`, `radius` | Fixed-ratio box |
+| `<Icon>` | `name` (emoji or text), `size`, `tone`, `label` | Emoji-or-placeholder glyph, no icon font |
+
+Spacing keywords (`gap`, `p`, `m`, …): `xs · sm · md · lg · xl · 2xl · 3xl`, or a
+number (px), or any raw CSS length.
+
+```jsx
+<Box p="md" bg="subtle" radius="lg" border>
+  <Stack gap="sm">
+    <Heading level={3} size="lg">Title</Heading>
+    <Inline gap="sm" align="center">
+      <Avatar initials="AB" /> <Text tone="muted">subtitle</Text> <Spacer grow />
+    </Inline>
+  </Stack>
+</Box>
+```
+
+## `defineComponent(name, spec)` — custom reusable components
+
+Compose new, named components from the primitives **without editing
+`components.js`**. The result works as a normal MDX component and nests inside
+other `render()` trees. It auto-registers so MDX, `resolveComponents()`, and
+plugins all see it.
+
+```mdx
+import { defineComponent, Box, Stack, Heading, Text, Button } from "./components.js";
+
+export const PricingCard = defineComponent("PricingCard", {
+  props: {
+    plan: { default: "Starter", required: true },
+    price: "$0",
+    features: [],
+    featured: false
+  },
+  render: (p) => Box({ p: "lg", border: p.featured ? "strong" : true, bg: "elev", children:
+    Stack({ gap: "md", children: [
+      Heading({ level: 3, children: p.plan }),
+      Text({ size: "2xl", weight: "bold", children: p.price }),
+      Button({ variant: p.featured ? "primary" : "secondary", fullWidth: true, children: "Choose " + p.plan })
+    ]})
+  })
+});
+
+<PricingCard plan="Pro" price="$29" featured />
+```
+
+**Spec shape**
+
+- `props` — a map of `key → default`, or `key → { default, required, type, oneOf, coerce }`.
+  Validation is **advisory** (it `console.warn`s, never throws — a thrown error
+  in an MDX component would blank the page). Array/object defaults are cloned per
+  instance so siblings never share mutable state. Undeclared incoming props
+  (`className`, `style`, `onClick`, `data-*`, `children`) pass through untouched.
+- `render(resolvedProps)` — returns a tree built by **calling primitives as
+  functions**: `Stack({ gap, children: [...] })`. For raw HTML tags use the
+  `el(tag, props, ...children)` helper. Pass `children` via the props object.
+- `register: false` — opt out of auto-registration (rarely needed).
+
+Registration precedence is **built-ins → defineComponent → `DPLAN_PLUGINS`**, so
+plugins keep the final say (see `docs/plugin-api.md`).
+
+## New wireframe components
+
+The kit gained 20 components in v1.5.0 — `Accordion`, `Dropdown`, `Progress`,
+`Spinner`, `EmptyState`, `Stepper`, `Chip`, `CodeBlock`, `Tooltip`,
+`Pagination`, `SegmentedControl`, `Drawer`, `MetricCard`, `ListItem`, `Popover`,
+`SearchBar`, `DescriptionList`, `ChatBubble`, `FileDropzone`, `ButtonGroup`. See
+`references/wireframe-components.md` for their prop tables.
+
+---
+
 ## Component file
 
-All components are defined in `assets/components.js` (vanilla JS, ESM,
-~150 lines). Open that file to see exact implementations. The `.mdx` file
-imports from it via `import { PlanHeader, ... } from "./components.js";`.
+All components are defined in `assets/components.js` (vanilla JS, ESM). Open that
+file to see exact implementations. The `.mdx` file imports from it via
+`import { PlanHeader, ... } from "./components.js";`.
 
 When compiling via `scripts/compile-mdx.mjs`, the bundler inlines
 `./components.js` into the output HTML so the file remains self-contained.

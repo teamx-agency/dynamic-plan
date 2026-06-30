@@ -1,0 +1,120 @@
+---
+title: "Analytics Dashboard"
+slug: "dashboard-kpis"
+generatedAt: "2026-06-30T00:00:00Z"
+goal: "Wireframe a KPI dashboard using the new metric, progress, and stepper components"
+status: draft
+stack: ["React", "Tokens"]
+---
+
+import {
+  PlanHeader, PlanSidebar, PlanStep, ProgressBar, ViewModeToggle, Callout,
+  Screen, ScreenFrame, Layout, Card, Button, Badge, Avatar,
+  DecisionForm, Decision, CopyDecisions,
+  Box, Stack, Inline, Text, Heading, Spacer,
+  MetricCard, Progress, Stepper, Chip, SegmentedControl, EmptyState, ListItem, Spinner
+} from "./components.js";
+
+<PlanHeader />
+<ViewModeToggle />
+
+<div className="plan-grid">
+  <aside className="plan-sidebar">
+    <ProgressBar />
+    <PlanSidebar steps={[
+      { id: "overview", title: "Overview" },
+      { id: "step-1", title: "1. KPI header" },
+      { id: "step-2", title: "2. Onboarding state" },
+      { id: "decisions", title: "Decisions" }
+    ]} />
+  </aside>
+
+  <main className="plan-main">
+
+    <section id="overview" className="plan-card">
+      <Heading level={2}>Overview</Heading>
+      <Callout emoji="📊" tone="info">
+        A KPI dashboard built entirely from the new component kit — metric cards,
+        progress meters, a setup stepper, and an empty state.
+      </Callout>
+    </section>
+
+    <PlanStep n={1} title="KPI header + metrics">
+      <ScreenFrame title="Dashboard" desc="Top KPIs with sparkline trends">
+        <Screen title="Analytics" url="app.teamx.io/analytics">
+          <Stack gap="lg">
+            <Inline justify="between" align="center">
+              <Heading level={3} size="lg">This month</Heading>
+              <SegmentedControl size="sm" options={[
+                { label: "7d", value: "7" },
+                { label: "30d", value: "30" },
+                { label: "90d", value: "90" }
+              ]} value="30" />
+            </Inline>
+
+            <Inline gap="md">
+              <MetricCard label="MRR" value="$48,210" delta="12.4%" trend="up" sparkline={[30, 32, 31, 35, 38, 42, 48]} style={{ flex: 1 }} />
+              <MetricCard label="Signups" value="1,840" delta="8.1%" trend="up" sparkline={[10, 12, 11, 14, 15, 17, 18]} style={{ flex: 1 }} />
+              <MetricCard label="Churn" value="2.3%" delta="0.5%" trend="down" sparkline={[4, 4, 3, 3, 3, 2, 2]} style={{ flex: 1 }} />
+              <MetricCard label="NPS" value="62" trend="flat" style={{ flex: 1 }} />
+            </Inline>
+
+            <Card title="Quota usage">
+              <Stack gap="md">
+                <Progress value={82} showLabel label="Seats" tone="accent" />
+                <Progress value={46} showLabel label="API calls" tone="good" />
+                <Progress value={94} showLabel label="Storage" tone="warn" />
+              </Stack>
+            </Card>
+
+            <Inline gap="sm">
+              <Chip label="Production" tone="good" />
+              <Chip label="us-east-1" />
+              <Chip label="v1.5.0" tone="accent" />
+            </Inline>
+          </Stack>
+        </Screen>
+      </ScreenFrame>
+    </PlanStep>
+
+    <PlanStep n={2} title="Onboarding & empty states">
+      <ScreenFrame title="First run" desc="Setup stepper + empty data state">
+        <Screen title="Get started" url="app.teamx.io/setup">
+          <Stack gap="lg">
+            <Stepper current={2} steps={[
+              { label: "Create account", description: "Done" },
+              { label: "Connect data", description: "Done" },
+              { label: "Invite team", description: "In progress" },
+              { label: "Go live", description: "Upcoming" }
+            ]} />
+
+            <EmptyState
+              icon="📈"
+              title="No data yet"
+              body="Connect a source to start seeing metrics here. It usually takes a minute to sync."
+              action={<Button variant="primary">Connect a source</Button>}
+            />
+
+            <Card title="Recent syncs">
+              <ListItem leading={<Spinner inline />} title="Stripe" subtitle="Syncing…" trailing={<Badge variant="warn">Running</Badge>} divider />
+              <ListItem leading={<Avatar initials="PG" />} title="Postgres" subtitle="Synced 2m ago" trailing={<Badge variant="success">OK</Badge>} />
+            </Card>
+          </Stack>
+        </Screen>
+      </ScreenFrame>
+    </PlanStep>
+
+    <section id="decisions" className="plan-card">
+      <Heading level={2}>Decisions</Heading>
+      <DecisionForm id="dash-decisions">
+        <Decision id="metric-layout" question="How many KPI cards across on desktop?" default="four"
+          options={[
+            { value: "four", label: "Four", help: "Dense, scannable" },
+            { value: "three", label: "Three", help: "Bigger numbers" }
+          ]} />
+      </DecisionForm>
+      <CopyDecisions target="#dash-decisions" />
+    </section>
+
+  </main>
+</div>
