@@ -202,9 +202,16 @@ When the user pastes the `@dynamic-plan decisions` block back:
 | `scripts/compile-mdx.mjs`   | Node ESM script: `.mdx` → standalone `.html` |
 | `scripts/serve-mdx.sh`      | Spawns local HTTP server and opens browser |
 | `references/mdx-components.md`    | JSX core components (`<PlanHeader>`, `<PlanSidebar>`, `<PlanStep>`, `<Mermaid>`, `<Callout>`, `<DecisionForm>`, `<Decision>`, `<CopyDecisions>`) |
-| `references/wireframe-components.md` | Figkit-style HTML wireframes (`<Screen>`, `<TopNav>`, `<SideNav>`, `<Button>`, `<Field>`, `<Modal>`, `<Card>`, `<Table>`, `<Stat>`, 30+ more) |
+| `references/wireframe-components.md` | Figkit-style HTML wireframes (`<Screen>`, `<Button>`, `<Modal>`, `<Card>`, `<Table>`, `<Stat>`, plus `<Accordion>`, `<Dropdown>`, `<Progress>`, `<Stepper>`, `<MetricCard>`, `<Chip>`, `<CodeBlock>`, 40+ total) |
+| `references/design-tokens.md` | Design-token + motion reference (spacing/type/radii/shadow/z/easing, `--wf-*` palette, dark + hi-fi) |
 | `references/wireframe-kit.md` | Mermaid design-system vocabulary (for backend/architecture diagrams) |
 | `references/mermaid-snippets.md` | Ready-made Mermaid snippets (login, CRUD, wizard, etc.) |
+
+**Composition layer (v1.5.0):** prefer the token-backed primitives `<Box>`,
+`<Stack>`, `<Inline>`, `<Text>`, `<Heading>`, `<Spacer>`, `<Skeleton>`,
+`<AspectRatio>`, `<Icon>` for layout instead of inline styles. To make a custom
+reusable component, use `defineComponent("Name", { props, render })` (composes
+primitives, auto-registers). See `references/mdx-components.md`.
 
 ---
 
@@ -240,6 +247,7 @@ edit propagates everywhere.
 ## Reference Index
 
 - Component API & JSX: [`references/mdx-components.md`](references/mdx-components.md)
+- Design tokens & motion: [`references/design-tokens.md`](references/design-tokens.md)
 - Mermaid wireframe library: [`references/mermaid-snippets.md`](references/mermaid-snippets.md)
 - Starter plan: [`assets/plan-template.mdx`](assets/plan-template.mdx)
 - Tailwind/CSS: [`assets/style.css`](assets/style.css)

@@ -1,0 +1,297 @@
+---
+title: "Component Gallery (v1.5.0)"
+slug: "component-gallery"
+generatedAt: "2026-06-30T00:00:00Z"
+goal: "Showcase the design-system primitives, the defineComponent() API, and the new wireframe components"
+status: draft
+stack: ["MDX", "React 18", "Design tokens"]
+---
+
+import {
+  PlanHeader, PlanSidebar, PlanStep, ProgressBar, ViewModeToggle, Callout,
+  Screen, ScreenFrame, Card, Button, Field, Input, Avatar, Badge, Divider,
+  DecisionForm, Decision, CopyDecisions,
+  el, defineComponent,
+  Box, Stack, Inline, Text, Heading, Spacer, Skeleton, AspectRatio, Icon,
+  Accordion, Dropdown, Progress, Spinner, EmptyState, Stepper, Chip, CodeBlock,
+  Tooltip, Pagination, SegmentedControl, Drawer, MetricCard, ListItem,
+  Popover, SearchBar, DescriptionList, ChatBubble, FileDropzone, ButtonGroup
+} from "./components.js";
+
+{/* A reusable custom component composed from primitives via defineComponent(). */}
+export const PricingCard = defineComponent("PricingCard", {
+  props: {
+    plan: { default: "Starter", required: true },
+    price: "$0",
+    features: [],
+    featured: false
+  },
+  render: (p) => Box({
+    p: "lg", radius: "lg",
+    border: p.featured ? "strong" : true,
+    bg: "elev",
+    shadow: p.featured ? "md" : false,
+    children: Stack({ gap: "md", children: [
+      Inline({ justify: "between", align: "center", children: [
+        Heading({ level: 3, size: "lg", children: p.plan }),
+        p.featured ? Chip({ label: "Popular", tone: "accent" }) : null
+      ]}),
+      Inline({ gap: "xs", align: "baseline", children: [
+        Text({ size: "2xl", weight: "bold", children: p.price }),
+        Text({ size: "sm", tone: "muted", children: "/mo" })
+      ]}),
+      Stack({ gap: "xs", children: p.features.map((f, i) =>
+        Inline({ key: i, gap: "sm", children: [ Icon({ name: "✓", tone: "good", size: "sm" }), Text({ size: "sm", children: f }) ] })
+      )}),
+      Button({ variant: p.featured ? "primary" : "secondary", fullWidth: true, children: "Choose " + p.plan })
+    ]})
+  })
+});
+
+<PlanHeader />
+<ViewModeToggle />
+
+<div className="plan-grid">
+  <aside className="plan-sidebar">
+    <ProgressBar />
+    <PlanSidebar steps={[
+      { id: "overview", title: "Overview" },
+      { id: "step-1", title: "1. Primitives" },
+      { id: "step-2", title: "2. New components" },
+      { id: "step-3", title: "3. defineComponent()" },
+      { id: "step-4", title: "4. The deferred six" },
+      { id: "decisions", title: "Decisions" }
+    ]} />
+  </aside>
+
+  <main className="plan-main">
+
+    <section id="overview" className="plan-card">
+      <Heading level={2}>Overview</Heading>
+      <Callout emoji="🎨" tone="info">
+        Everything below is built on the new token layer — change a token and the
+        whole kit re-themes. Toggle <strong>Wireframe ↔ Hi-Fi</strong> and your OS
+        dark mode to see the tokens at work.
+      </Callout>
+    </section>
+
+    <PlanStep n={1} title="Primitives (composition layer)">
+      <Heading level={4}>Layout & text atoms</Heading>
+      <p>Box, Stack, Inline, Text, Heading, Spacer, Skeleton, AspectRatio, Icon — all token-backed.</p>
+
+      <Stack gap="md">
+        <Inline gap="sm">
+          <Badge variant="primary">Box</Badge>
+          <Badge>Stack</Badge>
+          <Badge>Inline</Badge>
+          <Badge>Text</Badge>
+          <Badge>Heading</Badge>
+        </Inline>
+
+        <Box p="md" bg="subtle" radius="lg" border>
+          <Stack gap="sm">
+            <Heading level={4} size="md">A Box with a Stack inside</Heading>
+            <Text tone="muted" size="sm">Text comes in xs · sm · md · lg · xl with paired line-heights.</Text>
+            <Inline gap="sm" align="center">
+              <Avatar initials="AB" />
+              <Text weight="semibold">Inline lays things out horizontally</Text>
+              <Spacer grow />
+              <Icon name="⚙️" label="settings" />
+            </Inline>
+          </Stack>
+        </Box>
+
+        <Inline gap="md">
+          <Box bg="elev" border radius="md" p="md" style={{ flex: 1 }}>
+            <Text size="xs" tone="muted">Skeleton (shimmer)</Text>
+            <Spacer size="sm" />
+            <Skeleton lines={3} />
+          </Box>
+          <Box bg="elev" border radius="md" p="md" style={{ width: 180 }}>
+            <Text size="xs" tone="muted">AspectRatio 16:9</Text>
+            <Spacer size="sm" />
+            <AspectRatio ratio="16:9" bg="subtle" radius="sm" />
+          </Box>
+        </Inline>
+      </Stack>
+    </PlanStep>
+
+    <PlanStep n={2} title="New wireframe components">
+      <ScreenFrame title="Kit preview" desc="The 14 new components, themed by tokens">
+        <Screen title="Gallery" url="teamx.app/gallery">
+          <Stack gap="lg">
+
+            <Inline justify="between" align="center">
+              <SegmentedControl options={[
+                { label: "Overview", value: "ov" },
+                { label: "Activity", value: "ac" },
+                { label: "Settings", value: "se" }
+              ]} value="ov" />
+              <Inline gap="sm">
+                <Tooltip label="Filter results"><Button variant="secondary" size="sm">Filter</Button></Tooltip>
+                <Dropdown trigger="Actions ▾" items={[
+                  { label: "Edit", icon: "✏️" },
+                  { label: "Duplicate", icon: "⧉" },
+                  { divider: true },
+                  { label: "Delete", icon: "🗑", danger: true }
+                ]} align="right" />
+              </Inline>
+            </Inline>
+
+            <Inline gap="md">
+              <MetricCard label="Revenue" value="$48.2k" delta="12%" trend="up" sparkline={[4, 6, 5, 8, 7, 10, 12]} style={{ flex: 1 }} />
+              <MetricCard label="Churn" value="2.1%" delta="0.4%" trend="down" sparkline={[5, 4, 4, 3, 3, 2, 2]} style={{ flex: 1 }} />
+              <MetricCard label="Active" value="1,204" trend="flat" style={{ flex: 1 }} />
+            </Inline>
+
+            <Card title="Progress states">
+              <Stack gap="md">
+                <Progress value={68} showLabel label="Upload" />
+                <Inline gap="lg" align="center">
+                  <Progress variant="circular" value={72} />
+                  <Spinner label="Loading…" />
+                  <Inline gap="sm">
+                    <Chip label="design" removable />
+                    <Chip label="ready" tone="good" />
+                    <Chip label="blocked" tone="bad" />
+                    <Chip label="selected" selected />
+                  </Inline>
+                </Inline>
+              </Stack>
+            </Card>
+
+            <Inline gap="md" align="start">
+              <Box style={{ flex: 1 }}>
+                <Stepper current={1} steps={[
+                  { label: "Basics" },
+                  { label: "Payment" },
+                  { label: "Review" }
+                ]} />
+              </Box>
+            </Inline>
+
+            <Accordion title="FAQ" items={[
+              { id: "a", title: "How do tokens work?", body: "Every color/space/radius is a CSS variable; dark + hi-fi just re-point them.", defaultOpen: true },
+              { id: "b", title: "Can I add components?", body: "Yes — defineComponent() composes primitives into a named, reusable component." }
+            ]} />
+
+            <Card title="Members">
+              <ListItem leading={<Avatar initials="AL" />} title="Ada Lovelace" subtitle="_____@gmail.com" trailing={<Badge variant="success">Owner</Badge>} divider />
+              <ListItem leading={<Avatar initials="GH" />} title="Grace Hopper" subtitle="_____@gmail.com" trailing={<Badge>Member</Badge>} />
+            </Card>
+
+            <CodeBlock filename="theme.css" copyable showLineNumbers highlightLines={[2]} code={`:root {
+  --wf-accent: #4f46e5;
+  --radius: 7px;
+}`} />
+
+            <EmptyState icon="📭" title="No results" body="Try adjusting filters or clearing the search." action={<Button variant="primary" size="sm">Reset filters</Button>} />
+
+            <Inline justify="center">
+              <Pagination page={3} totalPages={12} />
+            </Inline>
+
+          </Stack>
+        </Screen>
+      </ScreenFrame>
+
+      <Callout emoji="🗂️" tone="info">
+        <code>&lt;Drawer&gt;</code> renders an edge-anchored sheet inside a positioned
+        <code>&lt;Screen&gt;</code> (like <code>&lt;Modal&gt;</code>) — open it from any trigger.
+      </Callout>
+    </PlanStep>
+
+    <PlanStep n={3} title="Custom component via defineComponent()">
+      <p>The <code>&lt;PricingCard&gt;</code> below is defined at the top of this file by composing primitives — no edits to <code>components.js</code>.</p>
+
+      <Inline gap="md" align="start">
+        <PricingCard plan="Starter" price="$0" features={["1 project", "Community support"]} />
+        <PricingCard plan="Pro" price="$29" features={["Unlimited projects", "Priority support", "Custom domains"]} featured />
+      </Inline>
+
+      <CodeBlock filename="plan.mdx" code={`export const PricingCard = defineComponent("PricingCard", {
+  props: { plan: "Starter", price: "$0", features: [], featured: false },
+  render: (p) => Box({ p: "lg", border: true, children:
+    Stack({ gap: "md", children: [
+      Heading({ level: 3, children: p.plan }),
+      Text({ size: "2xl", weight: "bold", children: p.price }),
+      Button({ variant: "primary", fullWidth: true, children: "Choose " + p.plan })
+    ]})
+  })
+});`} />
+    </PlanStep>
+
+    <PlanStep n={4} title="The deferred six (v1.5.0 fast-follow)">
+      <ScreenFrame title="Round 2" desc="Popover · SearchBar · DescriptionList · ChatBubble · FileDropzone · ButtonGroup">
+        <Screen title="Round 2" url="teamx.app/round-2">
+          <Stack gap="lg">
+
+            <Inline justify="between" align="center">
+              <SearchBar placeholder="Search components…" suggestions={["Accordion", "Dropdown", "Popover", "Pagination"]} />
+              <Inline gap="sm">
+                <ButtonGroup buttons={[
+                  { label: "Day", value: "d" },
+                  { label: "Week", value: "w", active: true },
+                  { label: "Month", value: "m" }
+                ]} />
+                <Popover trigger="Filters ▾" align="right" title="Filter by">
+                  <Stack gap="sm">
+                    <Chip label="Interactive" tone="accent" />
+                    <Chip label="Presentational" />
+                  </Stack>
+                </Popover>
+              </Inline>
+            </Inline>
+
+            <Inline gap="md" align="start">
+              <Card title="Deployment" style={{ flex: 1 }}>
+                <DescriptionList items={[
+                  { term: "Environment", description: "production" },
+                  { term: "Region", description: "us-east-1" },
+                  { term: "Version", description: "v1.5.0" },
+                  { term: "Status", description: "healthy" }
+                ]} />
+              </Card>
+              <Box style={{ flex: 1 }}>
+                <FileDropzone
+                  label="Drop assets to attach"
+                  hint="PNG, SVG, PDF · up to 10 MB"
+                  files={[
+                    { name: "hero.png", size: "2.4 MB", status: "done" },
+                    { name: "spec.pdf", size: "180 KB", status: "ready" },
+                    { name: "broken.zip", size: "—", status: "error" }
+                  ]}
+                />
+              </Box>
+            </Inline>
+
+            <Card title="Conversation">
+              <ChatBubble from="other" avatar="🧑" author="Ada" time="10:02">Can you ship the new wireframe kit today?</ChatBubble>
+              <ChatBubble from="user" time="10:03">Done — 20 components and a token system.</ChatBubble>
+              <ChatBubble from="system">Ada marked this thread resolved</ChatBubble>
+            </Card>
+
+          </Stack>
+        </Screen>
+      </ScreenFrame>
+    </PlanStep>
+
+    <section id="decisions" className="plan-card">
+      <Heading level={2}>Decisions</Heading>
+      <DecisionForm id="gallery-decisions">
+        <Decision id="adopt-tokens" question="Adopt the tokenized + modernized look as the default?" default="yes"
+          options={[
+            { value: "yes", label: "Yes", help: "Ship v1.5.0 tokens + modern radii/shadows" },
+            { value: "wireframe-only", label: "Wireframe-only", help: "Keep chrome as-is, theme wireframes only" }
+          ]} />
+        <Decision id="more-components" question="Build the deferred components next round (Popover, SearchBar, etc.)?" default="later"
+          options={[
+            { value: "now", label: "Now", help: "Add the remaining 6 components" },
+            { value: "later", label: "Later", help: "Ship the curated 14 first" }
+          ]} />
+      </DecisionForm>
+      <CopyDecisions target="#gallery-decisions" />
+    </section>
+
+  </main>
+</div>

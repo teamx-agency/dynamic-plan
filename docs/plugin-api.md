@@ -2,6 +2,55 @@
 
 Add your own components or override defaults without forking the package.
 
+There are **two ways** to add a component:
+
+1. **`defineComponent()`** — the recommended path. Compose primitives
+   declaratively, right inside your `.mdx`. No `<script>` injection, works at
+   compile time, no `window` needed. Use this unless you need to override a
+   built-in or reach for raw DOM.
+2. **`window.DPLAN_PLUGINS`** — the low-level path. Inject a component map (or
+   override an existing component) via a `<script>`. Use this to swap a built-in
+   (e.g. a Tailwind `<Button>`) or build with raw DOM/`React.createElement`.
+
+## `defineComponent()` (recommended)
+
+```mdx
+import { defineComponent, Box, Stack, Heading, Text, Button } from "./components.js";
+
+export const Callout2 = defineComponent("Callout2", {
+  props: { tone: { default: "info", oneOf: ["info", "good", "bad"] }, title: "" },
+  render: (p) => Box({ p: "md", bg: "subtle", radius: "md", border: true, children:
+    Stack({ gap: "sm", children: [
+      Heading({ level: 4, tone: p.tone === "info" ? "accent" : p.tone, children: p.title }),
+      Text({ size: "sm", children: p.children })
+    ]})
+  })
+});
+
+<Callout2 tone="good" title="Done">All checks passed.</Callout2>
+```
+
+- `props` accepts `key → default` or `key → { default, required, type, oneOf, coerce }`.
+  Validation is **advisory** — it `console.warn`s, never throws (a thrown error
+  in an MDX component blanks the page; there's no error boundary at `file://`).
+- Array/object defaults are **cloned per render**, so instances never share state.
+- Undeclared props (`className`, `style`, `onClick`, `data-*`, `children`) pass through.
+- `render(props)` calls primitives as functions; use `el(tag, props, …kids)` for raw HTML tags.
+
+### Registration & precedence
+
+`defineComponent` writes into a module-level `DEFINED_COMPONENTS` registry that
+`resolveComponents()` merges **between** the built-ins and `DPLAN_PLUGINS`:
+
+```
+built-ins  →  DEFINED_COMPONENTS  →  DPLAN_PLUGINS   (later wins)
+```
+
+So `DPLAN_PLUGINS` can still override a `defineComponent` component (and any
+built-in), preserving the contract below. Components defined at module load
+(`export const X = defineComponent(...)`) are available without any `window`
+dependency, which is why they also work during the Node compile pass.
+
 ## How it works
 
 The `dynamic-plan` skill loads its components from `./components.js`. Before

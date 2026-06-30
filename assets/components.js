@@ -17,6 +17,134 @@ const h = (type, props, ...children) => {
   return jsxs(type, Object.assign({}, props || {}, { children }));
 };
 
+// el(type, props, ...children): friendly alias for h() for use inside
+// defineComponent() render trees. `type` may be an HTML tag string OR a
+// component function (Stack, Button, …). Identical semantics to h().
+export function el(type, props) {
+  const children = Array.prototype.slice.call(arguments, 2);
+  return h.apply(null, [type, props].concat(children));
+}
+
+// ====================================================================
+// DESIGN-SYSTEM TOKEN HELPERS (back the primitives below)
+// ====================================================================
+// Registry of components created via defineComponent(). Declared at module
+// load so it exists during the Node compile pass (window undefined) AND in the
+// browser. resolveComponents() merges it between the built-ins and DPLAN_PLUGINS.
+var DEFINED_COMPONENTS = {};
+
+// Spacing scale: keyword | number(px) | raw-css -> css value (var on the 4pt scale).
+var SPACE = {
+  none: "0", "0": "0",
+  xs: "var(--space-1)", sm: "var(--space-2)", md: "var(--space-4)",
+  lg: "var(--space-6)", xl: "var(--space-8)", "2xl": "var(--space-12)", "3xl": "var(--space-16)"
+};
+function space(v) {
+  if (v == null) return null;
+  if (typeof v === "number") return v + "px";
+  if (Object.prototype.hasOwnProperty.call(SPACE, v)) return SPACE[v];
+  return String(v); // pass through raw css ("1rem", "10px", "var(--x)")
+}
+function cssLen(v) {
+  if (v == null) return null;
+  return typeof v === "number" ? v + "px" : String(v);
+}
+// Shallow clone so per-instance array/object defaults are never shared.
+function cloneDefault(v) {
+  if (Array.isArray(v)) return v.slice();
+  if (v && typeof v === "object") return Object.assign({}, v);
+  return v;
+}
+function bgTok(v) {
+  if (!v) return null;
+  var map = {
+    subtle: "var(--bg-subtle)", elev: "var(--bg-elev)", sunken: "var(--bg-sunken)",
+    "accent-soft": "var(--accent-soft)", accent: "var(--accent)",
+    surface: "var(--wf-surface)", "surface-subtle": "var(--wf-surface-subtle)"
+  };
+  return map[v] || v;
+}
+function radiusTok(v) {
+  if (v == null || v === false) return null;
+  if (v === true) return "var(--radius)";
+  if (typeof v === "number") return v + "px";
+  var map = {
+    none: "0", xs: "var(--radius-xs)", sm: "var(--radius-sm)", md: "var(--radius)",
+    lg: "var(--radius-lg)", xl: "var(--radius-xl)", pill: "var(--radius-pill)", circle: "var(--radius-circle)"
+  };
+  return map[v] || v;
+}
+function shadowTok(v) {
+  if (!v) return null;
+  if (v === true) return "var(--shadow-sm)";
+  var map = { xs: "var(--shadow-xs)", sm: "var(--shadow-sm)", md: "var(--shadow-md)", lg: "var(--shadow-lg)" };
+  return map[v] || v;
+}
+// Text tone -> chrome color token (primitives adapt to the plan theme, not the wf gray-box).
+function toneTok(v) {
+  var map = {
+    default: "var(--fg)", muted: "var(--muted)", accent: "var(--accent)",
+    good: "var(--good)", warn: "var(--warn)", bad: "var(--bad)", "on-accent": "var(--fg-on-accent)"
+  };
+  return map[v] || v;
+}
+function weightTok(v) {
+  if (v == null) return null;
+  if (typeof v === "number") return v;
+  var map = {
+    regular: "var(--weight-regular)", medium: "var(--weight-medium)",
+    semibold: "var(--weight-semibold)", bold: "var(--weight-bold)"
+  };
+  return map[v] || v;
+}
+var ALIGN_MAP = { start: "flex-start", center: "center", end: "flex-end", stretch: "stretch", baseline: "baseline" };
+var JUSTIFY_MAP = { start: "flex-start", center: "center", end: "flex-end", between: "space-between", around: "space-around", evenly: "space-evenly" };
+function alignVal(v) { return v ? (ALIGN_MAP[v] || v) : null; }
+function justifyVal(v) { return v ? (JUSTIFY_MAP[v] || v) : null; }
+
+// Apply box-model padding/margin shorthands onto a style object.
+function applyBoxModel(style, p) {
+  if (p.p != null) style.padding = space(p.p);
+  if (p.px != null) { style.paddingLeft = space(p.px); style.paddingRight = space(p.px); }
+  if (p.py != null) { style.paddingTop = space(p.py); style.paddingBottom = space(p.py); }
+  if (p.pt != null) style.paddingTop = space(p.pt);
+  if (p.pr != null) style.paddingRight = space(p.pr);
+  if (p.pb != null) style.paddingBottom = space(p.pb);
+  if (p.pl != null) style.paddingLeft = space(p.pl);
+  if (p.m != null) style.margin = space(p.m);
+  if (p.mx != null) { style.marginLeft = space(p.mx); style.marginRight = space(p.mx); }
+  if (p.my != null) { style.marginTop = space(p.my); style.marginBottom = space(p.my); }
+  if (p.mt != null) style.marginTop = space(p.mt);
+  if (p.mr != null) style.marginRight = space(p.mr);
+  if (p.mb != null) style.marginBottom = space(p.mb);
+  if (p.ml != null) style.marginLeft = space(p.ml);
+  return style;
+}
+// Apply surface shorthands (bg/border/radius/shadow/size) onto a style object.
+function applySurface(style, p) {
+  if (p.bg) style.background = bgTok(p.bg);
+  if (p.border) style.border = "1px solid " + (p.border === "strong" ? "var(--border-strong)" : "var(--border)");
+  if (p.radius != null) style.borderRadius = radiusTok(p.radius);
+  if (p.shadow != null && p.shadow !== false) style.boxShadow = shadowTok(p.shadow);
+  if (p.w != null) style.width = cssLen(p.w);
+  if (p.h != null) style.height = cssLen(p.h);
+  if (p.maxW != null) style.maxWidth = cssLen(p.maxW);
+  if (p.minW != null) style.minWidth = cssLen(p.minW);
+  return style;
+}
+// Forward only safe DOM attributes (events, a11y, ids) — never styling props.
+function passAttrs(p) {
+  var out = {};
+  var keys = ["id", "role", "title", "tabIndex", "onClick", "onMouseEnter", "onMouseLeave",
+    "onFocus", "onBlur", "onKeyDown", "htmlFor", "name", "href", "target", "rel"];
+  for (var i = 0; i < keys.length; i++) if (p[keys[i]] != null) out[keys[i]] = p[keys[i]];
+  for (var k in p) {
+    if (!Object.prototype.hasOwnProperty.call(p, k)) continue;
+    if (k.indexOf("data-") === 0 || k.indexOf("aria-") === 0) out[k] = p[k];
+  }
+  return out;
+}
+
 // ---------- helpers ----------
 function slug(s) {
   return String(s).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
@@ -1127,6 +1255,749 @@ export function ViewModeToggle() {
   );
 }
 
+// ====================================================================
+// defineComponent() — declarative factory for custom components
+// ====================================================================
+// Compose new, reusable, named components from the existing primitives without
+// editing this file. The returned function works as a normal MDX component AND
+// nests inside other render() trees. It self-registers so resolveComponents()
+// (and therefore MDX + plugins) can see it.
+//
+//   export const PricingCard = defineComponent("PricingCard", {
+//     props: { plan: "Free", price: { default: "$0", required: true } },
+//     render: (p) => Stack({ gap: "md", children: [
+//       Heading({ level: 3, children: p.plan }),
+//       Text({ size: "xl", weight: "bold", children: p.price }),
+//       Button({ variant: "primary", children: "Choose" }),
+//     ]}),
+//   });
+//
+// Validation is ADVISORY (console.warn, never throw) — a thrown error inside an
+// MDX component would blank the whole page at file:// with no error boundary.
+export function defineComponent(name, spec) {
+  spec = spec || {};
+  if (typeof spec.render !== "function") {
+    console.warn("[dynamic-plan] defineComponent('" + name + "'): missing render() function; rendering nothing.");
+    var Noop = function () { return null; };
+    Noop.displayName = spec.displayName || name;
+    return Noop;
+  }
+  var propSpec = spec.props || {};
+
+  function resolveProps(incoming) {
+    incoming = incoming || {};
+    var resolved = {};
+    for (var key in propSpec) {
+      if (!Object.prototype.hasOwnProperty.call(propSpec, key)) continue;
+      var def = propSpec[key];
+      var schema = (def && typeof def === "object" && !Array.isArray(def) &&
+        ("default" in def || "required" in def || "oneOf" in def || "type" in def || "coerce" in def))
+        ? def : { default: def };
+      var has = Object.prototype.hasOwnProperty.call(incoming, key) && incoming[key] !== undefined;
+      var value = has ? incoming[key] : cloneDefault(schema.default);
+      if (!has && schema.required) {
+        console.warn("[dynamic-plan] <" + name + ">: required prop '" + key + "' was not provided.");
+      }
+      if (has && schema.type && typeof value !== schema.type) {
+        console.warn("[dynamic-plan] <" + name + ">: prop '" + key + "' expected " + schema.type + ", got " + typeof value + ".");
+      }
+      if (has && Array.isArray(schema.oneOf) && schema.oneOf.indexOf(value) === -1) {
+        console.warn("[dynamic-plan] <" + name + ">: prop '" + key + "'=" + JSON.stringify(value) + " not in [" + schema.oneOf.join(", ") + "]; using default.");
+        value = cloneDefault(schema.default);
+      }
+      if (typeof schema.coerce === "function") {
+        try { value = schema.coerce(value); } catch (e) {}
+      }
+      resolved[key] = value;
+    }
+    // Pass through undeclared props untouched (className, style, onClick, data-*, children…).
+    for (var ik in incoming) {
+      if (!Object.prototype.hasOwnProperty.call(incoming, ik)) continue;
+      if (!(ik in resolved)) resolved[ik] = incoming[ik];
+    }
+    return resolved;
+  }
+
+  function Defined(props) {
+    var resolved = resolveProps(props);
+    try {
+      return spec.render(resolved);
+    } catch (e) {
+      console.warn("[dynamic-plan] <" + name + "> render error: " + (e && e.message ? e.message : e));
+      return null;
+    }
+  }
+  Defined.displayName = spec.displayName || name;
+
+  // Register into the module-level registry that resolveComponents() merges
+  // (built-ins -> DEFINED_COMPONENTS -> DPLAN_PLUGINS). Overwrites on redefine so
+  // the newest definition wins. Populated at module-eval, before the single
+  // bootstrap resolveComponents() call — so it works in Node compile AND browser
+  // with no window dependency.
+  if (spec.register !== false) DEFINED_COMPONENTS[name] = Defined;
+  return Defined;
+}
+
+// ====================================================================
+// PRIMITIVES (token-backed composition layer)
+// ====================================================================
+var SIZE_TOKEN = {
+  "2xs": "var(--text-2xs)", xs: "var(--text-xs)", sm: "var(--text-sm)", base: "var(--text-base)",
+  md: "var(--text-base)", lg: "var(--text-lg)", xl: "var(--text-xl)",
+  "2xl": "var(--text-2xl)", "3xl": "var(--text-3xl)", "4xl": "var(--text-4xl)"
+};
+var LEADING_TOKEN = {
+  "2xs": "var(--leading-2xs)", xs: "var(--leading-xs)", sm: "var(--leading-sm)", base: "var(--leading-base)",
+  md: "var(--leading-base)", lg: "var(--leading-lg)", xl: "var(--leading-xl)",
+  "2xl": "var(--leading-2xl)", "3xl": "var(--leading-3xl)", "4xl": "var(--leading-4xl)"
+};
+function sizeTok(v) { return v == null ? null : (SIZE_TOKEN[v] || (typeof v === "number" ? v + "px" : v)); }
+function leadingTok(v) { return LEADING_TOKEN[v] || "var(--leading-default)"; }
+
+// ---------- Box (box-model + surface atom) ----------
+export function Box(props) {
+  props = props || {};
+  var style = {};
+  applyBoxModel(style, props);
+  applySurface(style, props);
+  if (props.style) Object.assign(style, props.style);
+  return h(props.as || "div",
+    Object.assign({ className: wfClass("dp-box", props.className), style: style }, passAttrs(props)),
+    props.children);
+}
+
+// ---------- Stack (vertical flex flow) ----------
+export function Stack(props) {
+  props = props || {};
+  var style = { display: "flex", flexDirection: "column", gap: space(props.gap == null ? "md" : props.gap) };
+  if (props.align) style.alignItems = alignVal(props.align);
+  if (props.justify) style.justifyContent = justifyVal(props.justify);
+  applyBoxModel(style, props);
+  applySurface(style, props);
+  if (props.style) Object.assign(style, props.style);
+  return h(props.as || "div",
+    Object.assign({ className: wfClass("dp-stack", props.className), style: style }, passAttrs(props)),
+    props.children);
+}
+
+// ---------- Inline (horizontal flex row; modern Row) ----------
+export function Inline(props) {
+  props = props || {};
+  var style = {
+    display: "flex", flexDirection: "row",
+    gap: space(props.gap == null ? "sm" : props.gap),
+    alignItems: alignVal(props.align || "center"),
+    flexWrap: props.wrap === false ? "nowrap" : "wrap"
+  };
+  if (props.justify) style.justifyContent = justifyVal(props.justify);
+  applyBoxModel(style, props);
+  applySurface(style, props);
+  if (props.style) Object.assign(style, props.style);
+  return h(props.as || "div",
+    Object.assign({ className: wfClass("dp-inline", props.className), style: style }, passAttrs(props)),
+    props.children);
+}
+
+// ---------- Text ----------
+export function Text(props) {
+  props = props || {};
+  var size = props.size || "md";
+  var style = { fontSize: sizeTok(size), lineHeight: leadingTok(size) };
+  if (props.weight) style.fontWeight = weightTok(props.weight);
+  if (props.tone) style.color = toneTok(props.tone);
+  if (props.mono) style.fontFamily = "var(--font-mono)";
+  if (props.align) style.textAlign = props.align;
+  if (props.truncate === true) {
+    style.whiteSpace = "nowrap"; style.overflow = "hidden"; style.textOverflow = "ellipsis"; style.maxWidth = "100%"; style.display = "block";
+  } else if (typeof props.truncate === "number") {
+    style.display = "-webkit-box"; style.WebkitBoxOrient = "vertical"; style.WebkitLineClamp = String(props.truncate); style.overflow = "hidden";
+  }
+  applyBoxModel(style, props);
+  if (props.style) Object.assign(style, props.style);
+  return h(props.as || "span",
+    Object.assign({ className: wfClass("dp-text", props.className), style: style }, passAttrs(props)),
+    props.children);
+}
+
+// ---------- Heading (semantic hN, visual size decoupled from level) ----------
+var HEADING_SIZE = { 1: "var(--text-3xl)", 2: "var(--text-2xl)", 3: "var(--text-xl)", 4: "var(--text-lg)", 5: "var(--text-base)", 6: "var(--text-sm)" };
+export function Heading(props) {
+  props = props || {};
+  var level = props.level || 2;
+  if (level < 1) level = 1;
+  if (level > 6) level = 6;
+  var style = {
+    fontSize: props.size ? sizeTok(props.size) : HEADING_SIZE[level],
+    lineHeight: "1.25",
+    fontWeight: weightTok(props.weight || "semibold"),
+    margin: 0,
+    letterSpacing: "-0.01em"
+  };
+  if (props.tone) style.color = toneTok(props.tone);
+  applyBoxModel(style, props);
+  if (props.style) Object.assign(style, props.style);
+  return h("h" + level,
+    Object.assign({ className: wfClass("dp-heading", props.className), style: style }, passAttrs(props)),
+    props.children);
+}
+
+// ---------- Spacer ----------
+export function Spacer(props) {
+  props = props || {};
+  if (props.grow) return h("div", { className: wfClass("dp-spacer-grow", props.className), "aria-hidden": "true", style: Object.assign({ flex: "1 1 auto" }, props.style) });
+  var axis = props.axis === "x" ? "x" : "y";
+  var sz = space(props.size == null ? "md" : props.size);
+  var style = axis === "x" ? { display: "inline-block", width: sz, flex: "0 0 auto" } : { height: sz };
+  if (props.style) Object.assign(style, props.style);
+  return h("div", { className: wfClass("dp-spacer", props.className), "aria-hidden": "true", style: style });
+}
+
+// ---------- Skeleton (shimmer loading placeholder) ----------
+export function Skeleton(props) {
+  props = props || {};
+  var lines = props.lines && props.lines > 1 ? props.lines : 1;
+  var radius = props.radius != null ? radiusTok(props.radius) : "var(--radius-sm)";
+  function bar(i, w) {
+    return h("div", { key: i, className: "dp-skeleton", style: { width: w, height: cssLen(props.h || "1em"), borderRadius: radius } });
+  }
+  if (lines === 1) {
+    var single = bar(0, cssLen(props.w || "100%"));
+    return (props.style || props.className)
+      ? h("div", { className: props.className, style: props.style }, single)
+      : single;
+  }
+  var rows = [];
+  for (var i = 0; i < lines; i++) rows.push(bar(i, i === lines - 1 ? "70%" : "100%"));
+  return h("div", { className: wfClass("dp-skeleton-group", props.className), style: Object.assign({ display: "flex", flexDirection: "column", gap: "var(--space-2)" }, props.style) }, rows);
+}
+
+// ---------- AspectRatio (native CSS aspect-ratio; file:// safe) ----------
+export function AspectRatio(props) {
+  props = props || {};
+  var ratio = props.ratio || 16 / 9;
+  if (typeof ratio === "string" && ratio.indexOf(":") !== -1) {
+    var parts = ratio.split(":"), a = parseFloat(parts[0]), b = parseFloat(parts[1]);
+    ratio = (a && b) ? (a / b) : 16 / 9;
+  }
+  var style = { aspectRatio: String(ratio), width: cssLen(props.w || "100%"), overflow: "hidden" };
+  if (props.radius != null) style.borderRadius = radiusTok(props.radius);
+  if (props.bg) style.background = bgTok(props.bg);
+  if (props.style) Object.assign(style, props.style);
+  return h("div", Object.assign({ className: wfClass("dp-aspect", props.className), style: style }, passAttrs(props)), props.children);
+}
+
+// ---------- Icon (emoji-or-placeholder slot; no icon-font dep) ----------
+var ICON_SIZE = { xs: "var(--icon-xs)", sm: "var(--icon-sm)", md: "var(--icon-md)", lg: "var(--icon-lg)" };
+function isEmoji(str) {
+  if (!str || typeof str !== "string") return false;
+  if (!/[^\x00-\x7F]/.test(str)) return false; // ASCII (digits, #, *, letters) is never an icon glyph
+  // Treat emoji + common pictographic/dingbat/arrow glyphs (checks, arrows, stars) as icons.
+  try { return /\p{Emoji}/u.test(str) || /[←-⯿]/.test(str); }
+  catch (e) { return str.length <= 3; }
+}
+export function Icon(props) {
+  props = props || {};
+  var name = props.name;
+  var size = props.size || "md";
+  var sz = ICON_SIZE[size] || cssLen(size);
+  var style = Object.assign({ width: sz, height: sz, fontSize: sz, lineHeight: 1 }, props.style);
+  if (props.tone) style.color = toneTok(props.tone);
+  var common = {
+    style: style,
+    role: props.label ? "img" : undefined,
+    "aria-label": props.label || undefined,
+    "aria-hidden": props.label ? undefined : "true"
+  };
+  if (name && isEmoji(name)) {
+    return h("span", Object.assign({ className: wfClass("dp-icon", props.className) }, common), name);
+  }
+  return h("span", Object.assign({ className: wfClass("dp-icon dp-icon-placeholder", props.className) }, common),
+    typeof name === "string" && name.length <= 2 ? name : "");
+}
+
+// ====================================================================
+// NEW WIREFRAME COMPONENTS (built on the primitives + tokens)
+// ====================================================================
+
+// ---------- Accordion ----------
+export function Accordion(props) {
+  props = props || {};
+  var items = props.items || [];
+  var allowMultiple = !!props.allowMultiple;
+  // Namespace id vs index so a numeric/string id can never collide with a
+  // fallback index (which would dupe React keys and share open-state).
+  function akey(it, i) { return it.id != null ? "id:" + it.id : "i:" + i; }
+  var _s = useState(function () {
+    var initial = {};
+    items.forEach(function (it, i) { if (it.defaultOpen) initial[akey(it, i)] = true; });
+    return initial;
+  }), open = _s[0], setOpen = _s[1];
+  function toggle(key) {
+    setOpen(function (prev) {
+      var next = allowMultiple ? Object.assign({}, prev) : {};
+      next[key] = !prev[key];
+      return next;
+    });
+  }
+  return h("div", { className: wfClass("wf-accordion", props.className), style: props.style },
+    props.title && h("div", { className: "wf-accordion-title" }, props.title),
+    items.map(function (it, i) {
+      var key = akey(it, i);
+      var isOpen = !!open[key];
+      return h("div", { key: key, className: "wf-accordion-item" + (isOpen ? " open" : "") },
+        h("button", { type: "button", className: "wf-accordion-header", "aria-expanded": isOpen, onClick: function () { toggle(key); } },
+          h("span", { className: "wf-accordion-chevron" }, "▸"),
+          h("span", { className: "wf-accordion-header-title" }, it.title)
+        ),
+        isOpen && h("div", { className: "wf-accordion-body" }, it.body != null ? it.body : it.children)
+      );
+    })
+  );
+}
+
+// ---------- Dropdown (menu) ----------
+export function Dropdown(props) {
+  props = props || {};
+  var trigger = props.trigger || "Menu ▾";
+  var items = props.items || [];
+  var align = props.align === "right" ? "right" : "left";
+  var _s = useState(false), open = _s[0], setOpen = _s[1];
+  var ref = useRef(null);
+  useEffect(function () {
+    function onDoc(e) { if (ref.current && !ref.current.contains(e.target)) setOpen(false); }
+    document.addEventListener("mousedown", onDoc);
+    return function () { document.removeEventListener("mousedown", onDoc); };
+  }, []);
+  return h("div", { className: wfClass("wf-dropdown", props.className), ref: ref },
+    h("button", { type: "button", className: "wf-dropdown-trigger", "aria-haspopup": "menu", "aria-expanded": open, onClick: function () { setOpen(!open); } }, trigger),
+    open && h("div", { className: "wf-dropdown-menu wf-dropdown-" + align, role: "menu" },
+      items.map(function (it, i) {
+        if (it.divider) return h("div", { key: "d" + i, className: "wf-dropdown-divider" });
+        return h("button", {
+          key: i, type: "button", role: "menuitem", disabled: !!it.disabled,
+          className: "wf-dropdown-item" + (it.danger ? " danger" : "") + (it.disabled ? " disabled" : ""),
+          onClick: function () { if (!it.disabled) { setOpen(false); if (typeof props.onSelect === "function") props.onSelect(it.value != null ? it.value : it.label); } }
+        },
+          it.icon && h("span", { className: "wf-dropdown-item-icon" }, it.icon),
+          h("span", null, it.label)
+        );
+      })
+    )
+  );
+}
+
+// ---------- Progress (linear + circular) ----------
+export function Progress(props) {
+  props = props || {};
+  var value = Math.max(0, Math.min(100, props.value == null ? 0 : props.value));
+  var variant = props.variant === "circular" ? "circular" : "linear";
+  var tone = props.tone || "accent";
+  var size = props.size || "md";
+  var indeterminate = !!props.indeterminate;
+  // Map tone -> a real token (the kit accepts success/danger aliases too).
+  var toneVar = { accent: "--wf-accent", good: "--good", success: "--good", warn: "--warn", bad: "--bad", danger: "--bad", info: "--info" }[tone] || "--wf-accent";
+  var color = "var(" + toneVar + ")";
+  var ariaNow = indeterminate ? undefined : value;
+  if (variant === "circular") {
+    var dim = size === "sm" ? 36 : size === "lg" ? 72 : 52;
+    var stroke = size === "sm" ? 4 : size === "lg" ? 7 : 5;
+    var r = (dim - stroke) / 2;
+    var circ = 2 * Math.PI * r;
+    var off = circ * (1 - value / 100);
+    return h("div", { className: wfClass("wf-progress-circular", indeterminate ? "indeterminate" : "", props.className), style: Object.assign({ width: dim, height: dim }, props.style) },
+      h("svg", { width: dim, height: dim, viewBox: "0 0 " + dim + " " + dim, role: "progressbar", "aria-valuenow": ariaNow, "aria-valuemin": 0, "aria-valuemax": 100 },
+        h("circle", { cx: dim / 2, cy: dim / 2, r: r, fill: "none", stroke: "var(--wf-border)", "stroke-width": stroke }),
+        h("circle", { cx: dim / 2, cy: dim / 2, r: r, fill: "none", stroke: color, "stroke-width": stroke, "stroke-linecap": "round", "stroke-dasharray": circ, "stroke-dashoffset": indeterminate ? circ * 0.72 : off, transform: "rotate(-90 " + (dim / 2) + " " + (dim / 2) + ")", style: { transition: "stroke-dashoffset var(--dur-slow) var(--ease-standard)" } })
+      ),
+      (props.showLabel || props.label != null) && h("div", { className: "wf-progress-circular-label" }, props.label != null ? props.label : value + "%")
+    );
+  }
+  return h("div", { className: wfClass("wf-progress", props.className), style: props.style },
+    (props.showLabel || props.label != null) && h("div", { className: "wf-progress-head" },
+      h("span", null, props.label != null ? props.label : "Progress"),
+      props.showLabel && h("span", { className: "wf-progress-pct" }, value + "%")
+    ),
+    h("div", { className: "wf-progress-track wf-progress-" + size, role: "progressbar", "aria-valuenow": ariaNow, "aria-valuemin": 0, "aria-valuemax": 100 },
+      h("div", { className: "wf-progress-fill" + (indeterminate ? " indeterminate" : ""), style: { width: indeterminate ? "40%" : value + "%", background: color } })
+    )
+  );
+}
+
+// ---------- Spinner ----------
+export function Spinner(props) {
+  props = props || {};
+  var size = props.size || "md";
+  var spin = h("span", { className: wfClass("wf-spinner", "wf-spinner-" + size, props.inline ? "wf-spinner-inline" : "", props.className), role: "status", "aria-label": props.label || "Loading" });
+  if (props.label && !props.inline) {
+    return h("div", { className: "wf-spinner-wrap" }, spin, h("span", { className: "wf-spinner-label" }, props.label));
+  }
+  return spin;
+}
+
+// ---------- EmptyState ----------
+export function EmptyState(props) {
+  props = props || {};
+  return h("div", { className: wfClass("wf-empty-state", props.className), style: props.style },
+    props.icon && h("div", { className: "wf-empty-state-icon" }, props.icon),
+    h("div", { className: "wf-empty-state-title" }, props.title || "Nothing here yet"),
+    props.body && h("div", { className: "wf-empty-state-body" }, props.body),
+    props.action && h("div", { className: "wf-empty-state-action" }, props.action)
+  );
+}
+
+// ---------- Stepper ----------
+export function Stepper(props) {
+  props = props || {};
+  var steps = props.steps || [];
+  var current = props.current || 0;
+  var vertical = props.orientation === "vertical";
+  var clickable = !!props.clickable;
+  return h("div", { className: wfClass("wf-stepper", vertical ? "wf-stepper-vertical" : "wf-stepper-horizontal", props.className), style: props.style },
+    steps.map(function (s, i) {
+      var state = i < current ? "done" : i === current ? "active" : "upcoming";
+      var nodeProps = { key: i, className: "wf-stepper-step wf-stepper-" + state + (clickable ? " clickable" : "") };
+      if (clickable && typeof props.onStepChange === "function") nodeProps.onClick = function () { props.onStepChange(i); };
+      return h("div", nodeProps,
+        h("div", { className: "wf-stepper-marker" }, state === "done" ? "✓" : (i + 1)),
+        h("div", { className: "wf-stepper-text" },
+          h("div", { className: "wf-stepper-label" }, s.label),
+          s.description && h("div", { className: "wf-stepper-desc" }, s.description)
+        ),
+        i < steps.length - 1 && h("div", { className: "wf-stepper-connector" })
+      );
+    })
+  );
+}
+
+// ---------- Chip / Tag ----------
+export function Chip(props) {
+  props = props || {};
+  var tone = props.tone || "default";
+  return h("span", { className: wfClass("wf-chip", "wf-chip-" + tone, props.selected ? "selected" : "", props.className) },
+    props.icon && h("span", { className: "wf-chip-icon" }, props.icon),
+    h("span", { className: "wf-chip-label" }, props.label),
+    props.removable && h("button", { type: "button", className: "wf-chip-remove", "aria-label": "Remove", onClick: function () { if (typeof props.onRemove === "function") props.onRemove(); } }, "✕")
+  );
+}
+
+// ---------- CodeBlock ----------
+export function CodeBlock(props) {
+  props = props || {};
+  var code = props.code || "";
+  var lines = code.replace(/\n$/, "").split("\n");
+  var highlight = props.highlightLines || [];
+  var _s = useState("Copy"), label = _s[0], setLabel = _s[1];
+  function copy() {
+    function done() { setLabel("Copied ✓"); setTimeout(function () { setLabel("Copy"); }, 2000); }
+    if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(code).then(done); }
+    else {
+      var ta = document.createElement("textarea"); ta.value = code; document.body.appendChild(ta); ta.select();
+      try { document.execCommand("copy"); } catch (e) {}
+      document.body.removeChild(ta); done();
+    }
+  }
+  return h("div", { className: wfClass("wf-code-block", props.className) },
+    (props.filename || props.lang || props.copyable !== false) && h("div", { className: "wf-code-head" },
+      h("span", { className: "wf-code-filename" }, props.filename || props.lang || "code"),
+      props.copyable !== false && h("button", { type: "button", className: "wf-code-copy", onClick: copy }, label)
+    ),
+    h("pre", { className: "wf-code-pre" },
+      h("code", null,
+        lines.map(function (ln, i) {
+          return h("span", { key: i, className: "wf-code-line" + (highlight.indexOf(i + 1) !== -1 ? " highlight" : "") },
+            props.showLineNumbers && h("span", { className: "wf-code-ln" }, i + 1),
+            h("span", { className: "wf-code-txt" }, ln + "\n")
+          );
+        })
+      )
+    )
+  );
+}
+
+// ---------- Tooltip (CSS-only hover/focus reveal) ----------
+export function Tooltip(props) {
+  props = props || {};
+  var placement = props.placement || "top";
+  return h("span", { className: wfClass("wf-tooltip", "wf-tooltip-" + placement, props.className), tabIndex: 0 },
+    props.children,
+    h("span", { className: "wf-tooltip-bubble", role: "tooltip" }, props.label)
+  );
+}
+
+// ---------- Pagination ----------
+export function Pagination(props) {
+  props = props || {};
+  var page = props.page || 1;
+  var total = props.totalPages || 1;
+  var sib = props.siblingCount == null ? 1 : props.siblingCount;
+  var showPrevNext = props.showPrevNext !== false;
+  function go(p) { if (p >= 1 && p <= total && p !== page && typeof props.onChange === "function") props.onChange(p); }
+  var pages = [];
+  var left = Math.max(1, page - sib), right = Math.min(total, page + sib);
+  if (left > 1) { pages.push(1); if (left > 2) pages.push("…l"); }
+  for (var p = left; p <= right; p++) pages.push(p);
+  if (right < total) { if (right < total - 1) pages.push("…r"); pages.push(total); }
+  return h("nav", { className: wfClass("wf-pagination", props.className), "aria-label": "Pagination" },
+    showPrevNext && h("button", { type: "button", className: "wf-pagination-btn", disabled: page === 1, onClick: function () { go(page - 1); } }, "‹"),
+    pages.map(function (pg, i) {
+      if (pg === "…l" || pg === "…r") return h("span", { key: "e" + i, className: "wf-pagination-ellipsis" }, "…");
+      return h("button", { key: pg, type: "button", className: "wf-pagination-btn" + (pg === page ? " active" : ""), "aria-current": pg === page ? "page" : undefined, onClick: function () { go(pg); } }, pg);
+    }),
+    showPrevNext && h("button", { type: "button", className: "wf-pagination-btn", disabled: page === total, onClick: function () { go(page + 1); } }, "›")
+  );
+}
+
+// ---------- SegmentedControl ----------
+export function SegmentedControl(props) {
+  props = props || {};
+  var options = props.options || [];
+  var controlled = props.value != null;
+  var _s = useState(controlled ? props.value : (options[0] && options[0].value)), internal = _s[0], setInternal = _s[1];
+  var active = controlled ? props.value : internal;
+  function select(v) { if (!controlled) setInternal(v); if (typeof props.onChange === "function") props.onChange(v); }
+  return h("div", { className: wfClass("wf-segmented", props.size === "sm" ? "wf-segmented-sm" : "", props.className), role: "tablist" },
+    options.map(function (o, i) {
+      return h("button", { key: o.value != null ? o.value : i, type: "button", role: "tab", className: "wf-segmented-option" + (active === o.value ? " active" : ""), "aria-selected": active === o.value, onClick: function () { select(o.value); } },
+        o.icon && h("span", { className: "wf-segmented-icon" }, o.icon),
+        o.label
+      );
+    })
+  );
+}
+
+// ---------- Drawer (edge-anchored panel; needs a positioned Screen ancestor) ----------
+export function Drawer(props) {
+  props = props || {};
+  if (props.open === false) return null;
+  var side = props.side || "right";
+  var style = {};
+  if (side === "left" || side === "right") style.width = cssLen(props.width || 360);
+  function close() { if (typeof props.onClose === "function") props.onClose(); }
+  return h("div", { className: "wf-drawer-backdrop", onClick: close },
+    h("div", { className: wfClass("wf-drawer", "wf-drawer-" + side, props.className), style: style, onClick: function (e) { e.stopPropagation(); } },
+      h("div", { className: "wf-drawer-header" },
+        h("span", null, props.title || "Panel"),
+        h("button", { type: "button", className: "wf-drawer-close", "aria-label": "Close", onClick: close }, "✕")
+      ),
+      h("div", { className: "wf-drawer-body" }, props.children),
+      props.footer && h("div", { className: "wf-drawer-footer" }, props.footer)
+    )
+  );
+}
+
+// ---------- Sparkline (internal; used by MetricCard) ----------
+function Sparkline(props) {
+  var data = props.data || [];
+  if (data.length < 2) return null;
+  var w = 64, hgt = 20;
+  var min = Math.min.apply(null, data), max = Math.max.apply(null, data);
+  var range = max - min || 1;
+  var pts = data.map(function (v, i) {
+    var x = (i / (data.length - 1)) * w;
+    var y = hgt - ((v - min) / range) * (hgt - 2) - 1;
+    return x.toFixed(1) + "," + y.toFixed(1);
+  }).join(" ");
+  var stroke = props.tone === "good" ? "var(--good)" : props.tone === "bad" ? "var(--bad)" : "var(--wf-accent)";
+  return h("svg", { className: "wf-sparkline", width: w, height: hgt, viewBox: "0 0 " + w + " " + hgt, preserveAspectRatio: "none", "aria-hidden": "true" },
+    h("polyline", { points: pts, fill: "none", stroke: stroke, "stroke-width": 1.5, "stroke-linecap": "round", "stroke-linejoin": "round" })
+  );
+}
+
+// ---------- MetricCard ----------
+export function MetricCard(props) {
+  props = props || {};
+  var trend = props.trend || (props.delta ? "up" : "flat");
+  var trendTone = trend === "up" ? "good" : trend === "down" ? "bad" : "muted";
+  var arrow = trend === "up" ? "↗" : trend === "down" ? "↘" : "→";
+  var spark = props.sparkline || [];
+  return h("div", { className: wfClass("wf-metric-card", props.className), style: props.style },
+    h("div", { className: "wf-metric-head" },
+      h("span", { className: "wf-metric-label" }, props.label || "Metric"),
+      props.icon && h("span", { className: "wf-metric-icon" }, props.icon)
+    ),
+    h("div", { className: "wf-metric-value" }, props.value != null ? props.value : "00,000"),
+    (props.delta || spark.length > 1) && h("div", { className: "wf-metric-foot" },
+      props.delta && h("span", { className: "wf-metric-delta wf-metric-" + trendTone }, arrow + " " + props.delta),
+      spark.length > 1 && h(Sparkline, { data: spark, tone: trendTone })
+    )
+  );
+}
+
+// ---------- ListItem ----------
+export function ListItem(props) {
+  props = props || {};
+  return h("div", { className: wfClass("wf-list-item", props.active ? "active" : "", props.divider ? "with-divider" : "", props.className), style: props.style, onClick: props.onClick },
+    props.leading && h("span", { className: "wf-list-leading" }, props.leading),
+    h("div", { className: "wf-list-main" },
+      h("div", { className: "wf-list-title" }, props.title),
+      props.subtitle && h("div", { className: "wf-list-subtitle" }, props.subtitle)
+    ),
+    props.trailing && h("span", { className: "wf-list-trailing" }, props.trailing)
+  );
+}
+
+// ---------- Popover (anchored arbitrary content; closes on outside click) ----------
+export function Popover(props) {
+  props = props || {};
+  var trigger = props.trigger || "Open";
+  var align = props.align === "right" ? "right" : "left";
+  var placement = props.placement === "top" ? "top" : "bottom";
+  var _s = useState(!!props.defaultOpen), open = _s[0], setOpen = _s[1];
+  var ref = useRef(null);
+  useEffect(function () {
+    function onDoc(e) { if (ref.current && !ref.current.contains(e.target)) setOpen(false); }
+    function onKey(e) { if (e.key === "Escape") setOpen(false); }
+    document.addEventListener("mousedown", onDoc);
+    document.addEventListener("keydown", onKey);
+    return function () { document.removeEventListener("mousedown", onDoc); document.removeEventListener("keydown", onKey); };
+  }, []);
+  return h("div", { className: wfClass("wf-popover", props.className), style: props.style, ref: ref },
+    h("button", { type: "button", className: "wf-popover-trigger", "aria-haspopup": "dialog", "aria-expanded": open, onClick: function () { setOpen(!open); } }, trigger),
+    open && h("div", { className: "wf-popover-panel wf-popover-" + align + " wf-popover-" + placement, role: "dialog" },
+      props.title && h("div", { className: "wf-popover-title" }, props.title),
+      h("div", { className: "wf-popover-body" }, props.children)
+    )
+  );
+}
+
+// ---------- SearchBar (functional input + clear + optional suggestions) ----------
+export function SearchBar(props) {
+  props = props || {};
+  var controlled = props.value != null;
+  var _s = useState(controlled ? props.value : (props.defaultValue || "")), val = _s[0], setVal = _s[1];
+  var current = controlled ? props.value : val;
+  var suggestions = props.suggestions || [];
+  var _s2 = useState(false), focused = _s2[0], setFocused = _s2[1];
+  function change(e) {
+    var v = e.target.value;
+    if (!controlled) setVal(v);
+    if (typeof props.onChange === "function") props.onChange(v);
+  }
+  function clear() {
+    if (!controlled) setVal("");
+    if (typeof props.onClear === "function") props.onClear();
+    if (typeof props.onChange === "function") props.onChange("");
+  }
+  var matches = (focused && current)
+    ? suggestions.filter(function (s) { var l = typeof s === "string" ? s : s.label; return String(l).toLowerCase().indexOf(String(current).toLowerCase()) !== -1; }).slice(0, 6)
+    : [];
+  return h("div", { className: wfClass("wf-searchbar", props.className), style: props.style },
+    h("div", { className: "wf-searchbar-field" },
+      h("span", { className: "wf-searchbar-icon", "aria-hidden": "true" }, "🔍"),
+      h("input", {
+        type: "search", className: "wf-searchbar-input", placeholder: props.placeholder || "Search…",
+        value: current, onChange: change,
+        onFocus: function () { setFocused(true); },
+        onBlur: function () { setTimeout(function () { setFocused(false); }, 120); }
+      }),
+      current ? h("button", { type: "button", className: "wf-searchbar-clear", "aria-label": "Clear search", onMouseDown: function (e) { e.preventDefault(); }, onClick: clear }, "✕") : null
+    ),
+    matches.length > 0 && h("div", { className: "wf-searchbar-suggestions", role: "listbox" },
+      matches.map(function (s, i) {
+        var label = typeof s === "string" ? s : s.label;
+        return h("button", {
+          key: i, type: "button", role: "option", className: "wf-searchbar-suggestion",
+          onMouseDown: function (e) { e.preventDefault(); },
+          onClick: function () {
+            if (!controlled) setVal(label);
+            if (typeof props.onChange === "function") props.onChange(label);
+            if (typeof props.onSelect === "function") props.onSelect(typeof s === "string" ? s : (s.value != null ? s.value : s.label));
+            setFocused(false);
+          }
+        }, label);
+      })
+    )
+  );
+}
+
+// ---------- DescriptionList (term/value pairs) ----------
+export function DescriptionList(props) {
+  props = props || {};
+  var items = props.items || [];
+  var horizontal = props.layout !== "stacked"; // default horizontal
+  return h("div", { className: wfClass("wf-dl", horizontal ? "wf-dl-horizontal" : "wf-dl-stacked", props.className), style: props.style },
+    props.title && h("div", { className: "wf-dl-title" }, props.title),
+    h("dl", { className: "wf-dl-list" },
+      items.map(function (it, i) {
+        return h("div", { key: i, className: "wf-dl-row" },
+          h("dt", { className: "wf-dl-term" }, it.term),
+          h("dd", { className: "wf-dl-desc" }, it.description != null ? it.description : it.value)
+        );
+      })
+    )
+  );
+}
+
+// ---------- ChatBubble ----------
+export function ChatBubble(props) {
+  props = props || {};
+  var from = props.from || "other"; // user | other | system
+  var body = props.children != null ? props.children : props.text;
+  if (from === "system") {
+    return h("div", { className: wfClass("wf-chat-system", props.className), style: props.style }, body);
+  }
+  return h("div", { className: wfClass("wf-chat-row", "wf-chat-" + from, props.className), style: props.style },
+    props.avatar && from === "other" && h("span", { className: "wf-chat-avatar" }, props.avatar),
+    h("div", { className: "wf-chat-bubble" },
+      props.author && h("div", { className: "wf-chat-author" }, props.author),
+      h("div", { className: "wf-chat-text" }, body),
+      props.time && h("div", { className: "wf-chat-time" }, props.time)
+    )
+  );
+}
+
+// ---------- FileDropzone (wireframe upload area + file list) ----------
+export function FileDropzone(props) {
+  props = props || {};
+  var files = props.files || [];
+  var _s = useState(false), drag = _s[0], setDrag = _s[1];
+  return h("div", { className: wfClass("wf-dropzone-wrap", props.className), style: props.style },
+    h("div", {
+      className: "wf-dropzone" + (drag ? " drag-over" : ""), role: "button", tabIndex: 0,
+      onDragOver: function (e) { e.preventDefault(); setDrag(true); },
+      onDragLeave: function () { setDrag(false); },
+      onDrop: function (e) { e.preventDefault(); setDrag(false); }
+    },
+      h("div", { className: "wf-dropzone-icon" }, props.icon || "📁"),
+      h("div", { className: "wf-dropzone-label" }, props.label || "Drag & drop files here"),
+      h("div", { className: "wf-dropzone-hint" }, props.hint || "or click to browse"),
+      props.accept && h("div", { className: "wf-dropzone-accept" }, props.accept)
+    ),
+    files.length > 0 && h("div", { className: "wf-dropzone-files" },
+      files.map(function (f, i) {
+        var status = f.status || "ready";
+        return h("div", { key: i, className: "wf-dropzone-file" },
+          h("span", { className: "wf-dropzone-file-icon", "aria-hidden": "true" }, "📄"),
+          h("span", { className: "wf-dropzone-file-name" }, f.name),
+          f.size && h("span", { className: "wf-dropzone-file-size" }, f.size),
+          h("span", { className: "wf-dropzone-file-status wf-dropzone-" + status }, status)
+        );
+      })
+    )
+  );
+}
+
+// ---------- ButtonGroup (attached or spaced button row) ----------
+export function ButtonGroup(props) {
+  props = props || {};
+  var buttons = props.buttons;
+  var attached = props.attached !== false; // default attached
+  var cls = wfClass("wf-btn-group", attached ? "wf-btn-group-attached" : "", props.className);
+  if (buttons) {
+    return h("div", { className: cls, style: props.style, role: "group" },
+      buttons.map(function (b, i) {
+        return h("button", {
+          key: i, type: "button",
+          className: "wf-btn " + (b.active ? "wf-btn-primary active" : "wf-btn-secondary"),
+          "aria-pressed": !!b.active,
+          onClick: function () { if (typeof props.onSelect === "function") props.onSelect(b.value != null ? b.value : i); }
+        }, b.icon && h("span", null, b.icon + " "), b.label);
+      })
+    );
+  }
+  return h("div", { className: cls, style: props.style, role: "group" }, props.children);
+}
+
 // Plugins: when window.DPLAN_PLUGINS is set (array of component maps), merge them
 // into the default components map. See docs/plugin-api.md.
 function resolveComponents() {
@@ -1140,8 +2011,27 @@ function resolveComponents() {
     Toggle: Toggle, Card: Card, Modal: Modal, Toast: Toast, ToastStack: ToastStack,
     AlertBanner: AlertBanner, Table: Table, Avatar: Avatar, Badge: Badge, Stat: Stat,
     Divider: Divider, TextDivider: TextDivider, Row: Row, Col: Col, Grid: Grid,
-    ViewModeToggle: ViewModeToggle
+    ViewModeToggle: ViewModeToggle,
+    // Data viz & interactive (were missing from this map — plugins/overrides couldn't see them)
+    BarChart: BarChart, DataTable: DataTable, Timeline: Timeline,
+    KanbanBoard: KanbanBoard, GanttChart: GanttChart,
+    // Composition API + primitives
+    el: el, defineComponent: defineComponent,
+    Box: Box, Stack: Stack, Inline: Inline, Text: Text, Heading: Heading,
+    Spacer: Spacer, Skeleton: Skeleton, AspectRatio: AspectRatio, Icon: Icon,
+    // New wireframe components
+    Accordion: Accordion, Dropdown: Dropdown, Progress: Progress, Spinner: Spinner,
+    EmptyState: EmptyState, Stepper: Stepper, Chip: Chip, CodeBlock: CodeBlock,
+    Tooltip: Tooltip, Pagination: Pagination, SegmentedControl: SegmentedControl,
+    Drawer: Drawer, MetricCard: MetricCard, ListItem: ListItem,
+    Popover: Popover, SearchBar: SearchBar, DescriptionList: DescriptionList,
+    ChatBubble: ChatBubble, FileDropzone: FileDropzone, ButtonGroup: ButtonGroup
   };
+  // Custom components registered via defineComponent(). Precedence:
+  // built-ins -> DEFINED_COMPONENTS -> DPLAN_PLUGINS (later wins; plugins keep final say).
+  for (var dn in DEFINED_COMPONENTS) {
+    if (Object.prototype.hasOwnProperty.call(DEFINED_COMPONENTS, dn)) map[dn] = DEFINED_COMPONENTS[dn];
+  }
   if (typeof window !== "undefined" && Array.isArray(window.DPLAN_PLUGINS)) {
     for (var i = 0; i < window.DPLAN_PLUGINS.length; i++) {
       var plugin = window.DPLAN_PLUGINS[i];
@@ -1495,6 +2385,39 @@ export default {
   Timeline: Timeline,
   KanbanBoard: KanbanBoard,
   GanttChart: GanttChart,
+  // Composition API + primitives
+  el: el,
+  defineComponent: defineComponent,
+  Box: Box,
+  Stack: Stack,
+  Inline: Inline,
+  Text: Text,
+  Heading: Heading,
+  Spacer: Spacer,
+  Skeleton: Skeleton,
+  AspectRatio: AspectRatio,
+  Icon: Icon,
+  // New wireframe components
+  Accordion: Accordion,
+  Dropdown: Dropdown,
+  Progress: Progress,
+  Spinner: Spinner,
+  EmptyState: EmptyState,
+  Stepper: Stepper,
+  Chip: Chip,
+  CodeBlock: CodeBlock,
+  Tooltip: Tooltip,
+  Pagination: Pagination,
+  SegmentedControl: SegmentedControl,
+  Drawer: Drawer,
+  MetricCard: MetricCard,
+  ListItem: ListItem,
+  Popover: Popover,
+  SearchBar: SearchBar,
+  DescriptionList: DescriptionList,
+  ChatBubble: ChatBubble,
+  FileDropzone: FileDropzone,
+  ButtonGroup: ButtonGroup,
   // Plugin API
   resolveComponents: resolveComponents
 };
