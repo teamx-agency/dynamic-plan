@@ -1844,6 +1844,9 @@ export function Popover(props) {
   var placement = props.placement === "top" ? "top" : "bottom";
   var _s = useState(!!props.defaultOpen), open = _s[0], setOpen = _s[1];
   var ref = useRef(null);
+  var tidRef = useRef(null);
+  if (!tidRef.current) tidRef.current = "pp-" + Math.random().toString(36).slice(2, 8);
+  var titleId = tidRef.current + "-title";
   useEffect(function () {
     function onDoc(e) { if (ref.current && !ref.current.contains(e.target)) setOpen(false); }
     function onKey(e) { if (e.key === "Escape") setOpen(false); }
@@ -1853,8 +1856,8 @@ export function Popover(props) {
   }, []);
   return h("div", { className: wfClass("wf-popover", props.className), style: props.style, ref: ref },
     h("button", { type: "button", className: "wf-popover-trigger", "aria-haspopup": "dialog", "aria-expanded": open, onClick: function () { setOpen(!open); } }, trigger),
-    open && h("div", { className: "wf-popover-panel wf-popover-" + align + " wf-popover-" + placement, role: "dialog" },
-      props.title && h("div", { className: "wf-popover-title" }, props.title),
+    open && h("div", { className: "wf-popover-panel wf-popover-" + align + " wf-popover-" + placement, role: "dialog", "aria-labelledby": props.title ? titleId : undefined },
+      props.title && h("div", { id: titleId, className: "wf-popover-title" }, props.title),
       h("div", { className: "wf-popover-body" }, props.children)
     )
   );
@@ -1868,6 +1871,9 @@ export function SearchBar(props) {
   var current = controlled ? props.value : val;
   var suggestions = props.suggestions || [];
   var _s2 = useState(false), focused = _s2[0], setFocused = _s2[1];
+  var idRef = useRef(null);
+  if (!idRef.current) idRef.current = "sb-" + Math.random().toString(36).slice(2, 8);
+  var listId = idRef.current + "-list";
   function change(e) {
     var v = e.target.value;
     if (!controlled) setVal(v);
@@ -1887,12 +1893,13 @@ export function SearchBar(props) {
       h("input", {
         type: "search", className: "wf-searchbar-input", placeholder: props.placeholder || "Search…",
         value: current, onChange: change,
+        role: "combobox", "aria-expanded": matches.length > 0, "aria-autocomplete": "list", "aria-controls": listId,
         onFocus: function () { setFocused(true); },
         onBlur: function () { setTimeout(function () { setFocused(false); }, 120); }
       }),
       current ? h("button", { type: "button", className: "wf-searchbar-clear", "aria-label": "Clear search", onMouseDown: function (e) { e.preventDefault(); }, onClick: clear }, "✕") : null
     ),
-    matches.length > 0 && h("div", { className: "wf-searchbar-suggestions", role: "listbox" },
+    matches.length > 0 && h("div", { id: listId, className: "wf-searchbar-suggestions", role: "listbox" },
       matches.map(function (s, i) {
         var label = typeof s === "string" ? s : s.label;
         return h("button", {
@@ -1953,9 +1960,10 @@ export function FileDropzone(props) {
   var _s = useState(false), drag = _s[0], setDrag = _s[1];
   return h("div", { className: wfClass("wf-dropzone-wrap", props.className), style: props.style },
     h("div", {
-      className: "wf-dropzone" + (drag ? " drag-over" : ""), role: "button", tabIndex: 0,
+      className: "wf-dropzone" + (drag ? " drag-over" : ""),
       onDragOver: function (e) { e.preventDefault(); setDrag(true); },
-      onDragLeave: function () { setDrag(false); },
+      // Only clear on a true exit — dragleave also fires when crossing onto children.
+      onDragLeave: function (e) { if (!e.currentTarget.contains(e.relatedTarget)) setDrag(false); },
       onDrop: function (e) { e.preventDefault(); setDrag(false); }
     },
       h("div", { className: "wf-dropzone-icon" }, props.icon || "📁"),

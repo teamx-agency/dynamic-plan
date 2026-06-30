@@ -100,6 +100,8 @@
     --warn-soft: rgba(220, 166, 74, 0.16); --warn-border: rgba(220, 166, 74, 0.38);
     --bad-soft: rgba(224, 107, 102, 0.16); --bad-border: rgba(224, 107, 102, 0.38);
     --info: #4f9cf9; --info-soft: rgba(79, 156, 249, 0.16); --info-border: rgba(79, 156, 249, 0.35);
+    /* dark accents are light (tonal) -> dark text reads better than white on them */
+    --fg-on-accent: #1a1a1a;
     /* wireframe layer (dark) */
     --wf-bg: #1f1f1f; --wf-surface: #1a1a1a; --wf-surface-subtle: #2a2a2a; --wf-surface-sunken: #161616;
     --wf-fg: #e5e7eb; --wf-text: #c0c2c4; --wf-muted: #9ca3af; --wf-placeholder: #6b7280; --wf-ghost: #5a5a5a;
@@ -403,6 +405,7 @@ textarea.decision-note:focus { outline: none; border-color: var(--accent); box-s
 }
 .wf-btn:disabled,
 .wf-btn[aria-disabled="true"] { opacity: 0.4; }
+.wf-btn:focus-visible { outline: none; box-shadow: var(--shadow-focus-wf); }
 .wf-btn-primary { background: var(--wf-accent); color: var(--fg-on-accent); border-color: var(--wf-accent-strong); }
 .wf-btn-secondary { background: var(--wf-surface); color: var(--wf-fg); border-color: var(--wf-border-strong); }
 .wf-btn-ghost { background: transparent; color: var(--wf-accent); border-color: transparent; }
@@ -1380,6 +1383,7 @@ textarea.decision-note:focus { outline: none; border-color: var(--accent); box-s
   font-family: inherit; font-size: 13px; color: var(--wf-text); cursor: pointer; border-radius: var(--radius-sm);
 }
 .wf-searchbar-suggestion:hover { background: var(--wf-surface-subtle); }
+.wf-searchbar-clear:focus-visible, .wf-searchbar-suggestion:focus-visible { outline: none; box-shadow: var(--shadow-focus-wf); }
 
 /* ====================================================================
    DESCRIPTION LIST
@@ -1420,12 +1424,12 @@ textarea.decision-note:focus { outline: none; border-color: var(--accent); box-s
   background: var(--wf-surface-sunken); padding: 28px 20px; text-align: center;
   cursor: pointer; transition: border-color var(--dur-fast) var(--ease-standard), background var(--dur-fast) var(--ease-standard);
 }
-.wf-dropzone:hover, .wf-dropzone:focus-visible { border-color: var(--wf-accent); outline: none; }
+.wf-dropzone:hover { border-color: var(--wf-accent); }
 .wf-dropzone.drag-over { border-color: var(--wf-accent); background: var(--wf-accent-soft); }
 .wf-dropzone-icon { font-size: 28px; opacity: 0.7; line-height: 1; margin-bottom: 8px; }
 .wf-dropzone-label { font-size: 14px; font-weight: 500; color: var(--wf-fg); }
 .wf-dropzone-hint { font-size: 12px; color: var(--wf-muted); margin-top: 2px; }
-.wf-dropzone-accept { font-size: 11px; color: var(--wf-placeholder); margin-top: 6px; font-family: var(--font-mono); }
+.wf-dropzone-accept { font-size: 11px; color: var(--wf-muted); margin-top: 6px; font-family: var(--font-mono); }
 .wf-dropzone-files { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
 .wf-dropzone-file {
   display: flex; align-items: center; gap: 8px; padding: 6px 10px;
